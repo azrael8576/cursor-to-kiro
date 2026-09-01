@@ -1,0 +1,5 @@
+---
+alwaysApply: false
+globs: "**/*.ts"
+---
+TypeScript rule.

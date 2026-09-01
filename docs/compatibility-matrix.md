@@ -1,0 +1,19 @@
+# Cursor → Kiro compatibility matrix
+
+Last verified: **2026-09-02**. The detailed official-source evidence is in [official-research.md](./official-research.md).
+
+| Artifact / field or behavior | Cursor contract | Kiro contract | Status | Deterministic V1 rule | Unsupported reason | Official source |
+|---|---|---|---|---|---|---|
+| Root `AGENTS.md` | Root Markdown is workspace-wide | Root Markdown is automatically discovered | `NATIVE` | No-op; never copy or rewrite | — | [Cursor](https://prod.cursor.com/docs/rules), [Kiro](https://kiro.dev/docs/steering/) |
+| Nested `AGENTS.md` | Subtree-scoped; parent merge and specificity precedence documented | Recursive discovery documented; matching scope/precedence is not | `CONFLICT` | Report only; never modify | Observable composition is not proven equivalent | [Cursor](https://prod.cursor.com/docs/rules), [Kiro](https://kiro.dev/docs/steering/) |
+| Direct root/global standard Skill | Agent Skills `name`, `description`, body and bundle | Same open standard; different filesystem root | `TRANSFORM` | Byte-preserving directory copy to `.kiro/skills/<name>` or Kiro global root | — | [Cursor](https://prod.cursor.com/docs/skills), [Kiro](https://kiro.dev/docs/skills/), [spec](https://agentskills.io/specification) |
+| Nested project Skill | Directory position imposes subtree scope | No documented nested subtree Skill root | `CONFLICT` | Do not flatten | Flattening broadens scope | [Cursor](https://prod.cursor.com/docs/skills), [Kiro](https://kiro.dev/docs/skills/) |
+| Skill `paths` / `globs` | Controls surfacing by file glob | No equivalent documented Skill field | `CONFLICT` | Do not migrate entire Skill | Activation semantics would be lost | [Cursor](https://prod.cursor.com/docs/skills), [Kiro](https://kiro.dev/docs/skills/) |
+| Skill Cursor-only/unknown field | May control invocation or UI | No 1:1 field | `CONFLICT` | Do not drop the field; reject artifact | Strict whole-artifact policy | [Cursor](https://prod.cursor.com/docs/skills), [Kiro](https://kiro.dev/docs/skills/) |
+| `.cursorrules` | Legacy Always Apply in Cursor Agent Chat | Similar always steering, but different surfaces/references | `CONFLICT` | No automatic migration | End-to-end behavior is not proven | [Cursor](https://prod.cursor.com/help/customization/rules), [Kiro](https://kiro.dev/docs/steering/) |
+| `.cursor/rules/**/*.mdc` | Four activation combinations; Cursor references and glob behavior | Similar inclusion names; different evidence for surface/reference/matching | `CONFLICT` | V1 allowlist is empty; report exact reason | Similar names are not a semantic proof | [Cursor](https://prod.cursor.com/docs/rules), [Kiro](https://kiro.dev/docs/steering/) |
+| Custom Subagent / Agent | Parent-model and all-tool inheritance plus Cursor runtime defaults | Assigned custom-agent config/default model and different inheritance | `CONFLICT` | Do not migrate, even when frontmatter looks simple | Runtime behavior differs beyond fields | [Cursor](https://prod.cursor.com/docs/subagents), [Kiro](https://kiro.dev/docs/custom-agents/subagents/) |
+| Hooks | JSON decision protocol, Cursor event catalog, fail-open default | Standalone v1 files, context injection, different exit/block behavior | `CONFLICT` | Parse and report each hook; generate none | Lifecycle/action protocol is not 1:1 | [Cursor](https://prod.cursor.com/docs/hooks), [Kiro](https://kiro.dev/docs/hooks/) |
+| Account/team User Rules | Account/server-backed | N/A | `NOT_DISCOVERABLE` | Show informational notice; never inspect internal DB | No documented filesystem artifact | [Cursor](https://prod.cursor.com/help/customization/rules) |
+
+`NOT_DISCOVERABLE` is a scope capability, not a fifth domain compatibility status. Runtime artifact statuses remain only `EXACT`, `TRANSFORM`, `NATIVE`, and `CONFLICT`.
