@@ -12,6 +12,8 @@ async function scanRuleFile(
   scope: SourceScope,
   legacy: boolean,
   symlink: boolean,
+  destinationRuleRoot: string,
+  referenceRoot: string,
 ): Promise<RuleCandidate> {
   if (symlink) {
     return {
@@ -21,6 +23,7 @@ async function scanRuleFile(
       legacy,
       scope,
       sourceFiles: [],
+      destinationRuleRoot,
       parsed: { body: "", frontmatter: {}, raw: "" },
       discoveryConflict:
         "Rule artifact is a symlink; equivalent cross-platform behavior cannot be guaranteed.",
@@ -32,6 +35,7 @@ async function scanRuleFile(
     const parsed = legacy
       ? { body: lf(raw), frontmatter: {}, raw: lf(raw) }
       : parseMarkdown(raw);
+    const referenceIssue = await findReferenceIssue(parsed.body, referenceRoot);
     return {
       kind: "rule",
       id: `${scope}:rule:${identity}`,
@@ -39,7 +43,9 @@ async function scanRuleFile(
       legacy,
       scope,
       sourceFiles: [source],
+      destinationRuleRoot,
       parsed,
+      ...(referenceIssue ? { referenceIssue } : {}),
     };
   } catch (error) {
     return {
@@ -49,6 +55,7 @@ async function scanRuleFile(
       legacy,
       scope,
       sourceFiles: [],
+      destinationRuleRoot,
       parsed: { body: "", frontmatter: {}, raw: "" },
       discoveryConflict: errorMessage(error),
     };
@@ -69,6 +76,8 @@ export async function scanWorkspaceRules(
         "workspace",
         true,
         stat.isSymbolicLink(),
+        path.join(root, ".kiro", "steering"),
+        root,
       ),
     );
   } catch (error) {
@@ -87,13 +96,18 @@ export async function scanWorkspaceRules(
         "workspace",
         false,
         file.symlink,
+        path.join(root, ".kiro", "steering"),
+        root,
       ),
     );
   }
   return found;
 }
 
-export async function scanUserRules(home: string): Promise<RuleCandidate[]> {
+export async function scanUserRules(
+  home: string,
+  kiroHome: string,
+): Promise<RuleCandidate[]> {
   const root = path.join(home, ".cursor", "rules");
   const files = await walkFiles(root, {
     include: identity => identity.endsWith(".mdc"),
@@ -106,7 +120,47 @@ export async function scanUserRules(home: string): Promise<RuleCandidate[]> {
         "user",
         false,
         file.symlink,
+        path.join(kiroHome, "steering"),
+        home,
       ),
     ),
   );
+}
+
+function referenceTokens(
+  body: string,
+): Array<{ token: string; target: string }> {
+  const references: Array<{ token: string; target: string }> = [];
+  for (const match of body.matchAll(/\[[^\]]+\]\(mdc:([^)]+)\)/g)) {
+    const target = match[1];
+    if (target) references.push({ token: `mdc:${target}`, target });
+  }
+  for (const match of body.matchAll(
+    /@((?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+)(?=$|[\s),.;:!?])/g,
+  )) {
+    const target = match[1];
+    if (target) references.push({ token: `@${target}`, target });
+  }
+  return references;
+}
+
+async function findReferenceIssue(
+  body: string,
+  referenceRoot: string,
+): Promise<string | undefined> {
+  for (const { token, target } of referenceTokens(body)) {
+    const absolutePath = path.resolve(referenceRoot, target);
+    const relativePath = path.relative(referenceRoot, absolutePath);
+    if (relativePath.startsWith("..") || path.isAbsolute(relativePath))
+      return `UNSAFE_REFERENCE_TARGET: ${token}.`;
+    try {
+      const stat = await lstat(absolutePath);
+      if (!stat.isFile()) return `INVALID_REFERENCE_TARGET: ${token}.`;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT")
+        return `MISSING_REFERENCE_TARGET: ${token}.`;
+      throw error;
+    }
+  }
+  return undefined;
 }

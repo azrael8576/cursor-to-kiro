@@ -35,7 +35,7 @@ describe("golden and idempotency migration", () => {
       snapshot,
       tempDirectory,
     );
-    expect(first.created).toHaveLength(2);
+    expect(first.created).toHaveLength(3);
     const actual = await treeSnapshot(path.join(root, ".kiro"));
     const expected = await treeSnapshot(
       path.join(FIXTURES, "golden", "expected", ".kiro"),
@@ -58,7 +58,7 @@ describe("golden and idempotency migration", () => {
       tempDirectory,
     );
     expect(second.created).toHaveLength(0);
-    expect(second.alreadyPresent).toHaveLength(2);
+    expect(second.alreadyPresent).toHaveLength(3);
 
     const afterSources = (await treeSnapshot(root)).filter(
       file => !file.identity.startsWith(".kiro/"),

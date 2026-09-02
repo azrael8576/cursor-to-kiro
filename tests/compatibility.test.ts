@@ -12,6 +12,160 @@ import {
 afterEach(cleanupTemporary);
 
 describe("strict compatibility analysis", () => {
+  it("transforms a file-matched Rule and its live file references", async () => {
+    const root = await tempDirectory();
+    await writeText(root, "lib/repo/api.dart", "class Api {}\n");
+    await writeText(root, "lib/repo/model.dart", "class Model {}\n");
+    await writeText(root, "template.dart", "class Template {}\n");
+    await writeText(
+      root,
+      ".cursor/rules/api.mdc",
+      [
+        "---",
+        "alwaysApply: false",
+        "description: Apply to API changes.",
+        "globs:",
+        '  - "lib/repo/**/*.dart"',
+        "---",
+        "Read [the API](mdc:lib/repo/api.dart), @lib/repo/model.dart, and @template.dart.",
+        "",
+      ].join("\n"),
+    );
+    const plan = await createMigrationPlan(
+      (
+        await scan({
+          root,
+          scope: "workspace",
+          home: root,
+          kiroHome: path.join(root, ".kiro"),
+        })
+      ).candidates,
+    );
+
+    const rule = plan.analyses.find(item => item.candidate.kind === "rule");
+    expect(rule?.status).toBe("TRANSFORM");
+    expect(rule?.selected).toBe(true);
+    expect(plan.manifest).toHaveLength(1);
+    const [manifest] = plan.manifest;
+    if (!manifest) throw new Error("Expected a Rule manifest entry.");
+    expect(manifest).toMatchObject({
+      displayPath: ".kiro/steering/api.md",
+    });
+    expect(new TextDecoder().decode(manifest.bytes)).toBe(
+      [
+        "---",
+        "inclusion: fileMatch",
+        "fileMatchPattern:",
+        "  - lib/repo/**/*.dart",
+        "---",
+        "Read #[[file:lib/repo/api.dart]], #[[file:lib/repo/model.dart]], and #[[file:template.dart]].",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("reports the exact unsupported Rule field or value", async () => {
+    const root = await tempDirectory();
+    await writeText(
+      root,
+      ".cursor/rules/unknown-field.mdc",
+      "---\nalwaysApply: false\nglobs: lib/**/*.dart\nfutureSemanticField: enabled\n---\nBody\n",
+    );
+    await writeText(
+      root,
+      ".cursor/rules/invalid-glob.mdc",
+      "---\nalwaysApply: false\nglobs: 42\n---\nBody\n",
+    );
+    await writeText(
+      root,
+      ".cursor/rules/exotic-glob.mdc",
+      "---\nalwaysApply: false\nglobs: lib/{feature,base}/**/*.dart\n---\nBody\n",
+    );
+    await writeText(
+      root,
+      ".cursor/rules/missing-reference.mdc",
+      "---\nalwaysApply: false\nglobs: lib/**/*.dart\n---\nRead [missing](mdc:lib/missing.dart).\n",
+    );
+    const plan = await createMigrationPlan(
+      (
+        await scan({
+          root,
+          scope: "workspace",
+          home: root,
+          kiroHome: path.join(root, ".kiro"),
+        })
+      ).candidates,
+    );
+
+    const reasonFor = (identity: string) =>
+      plan.analyses.find(item => item.candidate.identity === identity)?.reason;
+    expect(reasonFor(".cursor/rules/unknown-field.mdc")).toBe(
+      'UNSUPPORTED_CURSOR_FIELD: futureSemanticField="enabled".',
+    );
+    expect(reasonFor(".cursor/rules/invalid-glob.mdc")).toBe(
+      "INVALID_GLOB: globs=42; expected a non-empty string or string array.",
+    );
+    expect(reasonFor(".cursor/rules/exotic-glob.mdc")).toBe(
+      'UNVERIFIED_GLOB_PATTERN: globs="lib/{feature,base}/**/*.dart".',
+    );
+    expect(reasonFor(".cursor/rules/missing-reference.mdc")).toBe(
+      "MISSING_REFERENCE_TARGET: mdc:lib/missing.dart.",
+    );
+  });
+
+  it("transforms always, auto, manual, and scalar multi-glob Rule modes", async () => {
+    const root = await tempDirectory();
+    await writeText(
+      root,
+      ".cursor/rules/always.mdc",
+      "---\nalwaysApply: true\ndescription: Ignored by Cursor.\nglobs: lib/**/*.dart\n---\nAlways\n",
+    );
+    await writeText(
+      root,
+      ".cursor/rules/auto.mdc",
+      "---\nalwaysApply: false\ndescription: Use for API work.\n---\nAuto\n",
+    );
+    await writeText(
+      root,
+      ".cursor/rules/manual.mdc",
+      "---\nalwaysApply: false\n---\nManual\n",
+    );
+    await writeText(
+      root,
+      ".cursor/rules/multi-glob.mdc",
+      "---\nalwaysApply: false\nglobs: lib/**/*.dart, test/**/*.dart\n---\nMultiple\n",
+    );
+    const plan = await createMigrationPlan(
+      (
+        await scan({
+          root,
+          scope: "workspace",
+          home: root,
+          kiroHome: path.join(root, ".kiro"),
+        })
+      ).candidates,
+    );
+
+    expect(plan.analyses.every(item => item.status === "TRANSFORM")).toBe(true);
+    expect(
+      plan.manifest.map(item => [
+        item.displayPath,
+        new TextDecoder().decode(item.bytes),
+      ]),
+    ).toEqual([
+      [".kiro/steering/always.md", "---\ninclusion: always\n---\nAlways\n"],
+      [
+        ".kiro/steering/auto.md",
+        "---\ninclusion: auto\nname: auto\ndescription: Use for API work.\n---\nAuto\n",
+      ],
+      [".kiro/steering/manual.md", "---\ninclusion: manual\n---\nManual\n"],
+      [
+        ".kiro/steering/multi-glob.md",
+        "---\ninclusion: fileMatch\nfileMatchPattern:\n  - lib/**/*.dart\n  - test/**/*.dart\n---\nMultiple\n",
+      ],
+    ]);
+  });
+
   it("migrates only the proven Skill subset in the golden fixture", async () => {
     const root = await fixtureWorkspace("golden/input");
     const scanned = await scan({
@@ -25,7 +179,7 @@ describe("strict compatibility analysis", () => {
       plan.analyses
         .filter(item => item.selected)
         .map(item => item.candidate.kind),
-    ).toEqual(["skill"]);
+    ).toEqual(["rule", "skill"]);
     expect(
       plan.analyses.find(item => item.candidate.identity === "AGENTS.md")
         ?.status,
@@ -37,7 +191,7 @@ describe("strict compatibility analysis", () => {
     ).toBe("CONFLICT");
     expect(
       plan.analyses.find(item => item.candidate.kind === "rule")?.status,
-    ).toBe("CONFLICT");
+    ).toBe("TRANSFORM");
     expect(
       plan.analyses.find(item => item.candidate.kind === "subagent")?.status,
     ).toBe("CONFLICT");

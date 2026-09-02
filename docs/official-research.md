@@ -1,5 +1,64 @@
 # Cursor → Kiro Strict Migration：官方文件研究
 
+> ## 2026-09-02 revalidation — Project Rules → Steering correction
+>
+> This section supersedes the earlier conservative conclusion for ordinary
+> root `.cursor/rules/**/*.mdc` project rules. The current official documents
+> explicitly describe the same four activation concepts: Cursor has Always,
+> Specific Files, Intelligently, and Manual; Kiro has `always`, `fileMatch`,
+> `auto`, and `manual`. A converter must preserve the documented fields and
+> report only concrete unsupported source data, rather than reject all rules
+> because the two products do not publish an implementation-level glob-engine
+> identity guarantee.
+>
+> | Cursor source condition | Kiro destination | Conversion | Exact documented caveat / failure condition |
+> | --- | --- | --- | --- |
+> | `alwaysApply: true` | `inclusion: always` | Do **not** copy `description` or `globs`: Cursor documents both as ignored in this state. | No Kiro field is needed. If the source has other, non-Cursor frontmatter, report that key. |
+> | `alwaysApply: false` and nonempty `globs` | `inclusion: fileMatch`; `fileMatchPattern` | Preserve each glob as an array entry. Cursor permits comma-separated patterns; parse a scalar on commas, trim entries; a YAML sequence is already an array. | Reject/report only a glob value that is neither a string nor a string sequence, or an empty result. Kiro documents scalar and array patterns. |
+> | `alwaysApply: false`, no `globs`, nonempty `description` | `inclusion: auto`; `name`; `description` | Derive deterministic `name` from normalized relative rule path (or filename if unique), preserving `description`. Kiro requires both fields for `auto`. | A missing/blank `description` is not auto: it maps to manual. A generated name is a destination identifier, not a Cursor source field. |
+> | `alwaysApply: false`, no `globs`, no `description` | `inclusion: manual` | Preserve body. | Invocation spelling differs: Cursor documents `@rule`; Kiro documents `#steering-file-name` and slash commands. This is a concrete UX non-equivalence, not a reason to reject the artifact. |
+> | omitted `alwaysApply` | infer the same three cases above, treating it as `false` only if the source parser establishes that Cursor-compatible default; otherwise report `alwaysApply` as missing/invalid. | Do not silently coerce malformed boolean values. | Cursor's published table only specifies `true`/`false`; a non-boolean is a source-schema failure. |
+>
+> **Pattern compatibility.** Both official documents explicitly demonstrate
+> `*`, `**`, extension patterns, directory patterns, and arrays / multiple
+> patterns. Cursor's rule examples include `*.ts`, `**/*.ts`, `src/**`, and
+> comma-separated patterns; Kiro's steering examples include `*.tsx`,
+> `app/api/**/*`, `**/*.test.*`, `src/components/**/*`, plus an array of
+> patterns. Therefore a source list consisting of ordinary string glob
+> patterns is transferable verbatim to Kiro's `fileMatchPattern` array. The
+> vendors do not specify the underlying matcher implementation or every exotic
+> grammar feature (for example braces, extglobs, negation, or character
+> classes). Mark those *specific patterns* `UNVERIFIED_PATTERN` if encountered;
+> do not mark documented `*`/`**` patterns as conflicts.
+>
+> **Live file references.** Cursor officially documents `@filename.ts` for
+> rule file inclusion. Kiro officially documents `#[[file:<relative path>]]`.
+> Convert Markdown links whose URL is `mdc:<workspace-relative-path>` to
+> `#[[file:<same path>]]`, retaining the surrounding prose (the Kiro syntax is
+> the live reference; the Markdown label is not). For example,
+> `[BaseApiRequest](mdc:lib/repo/api/base_api_request.dart)` becomes
+> `#[[file:lib/repo/api/base_api_request.dart]]`. Also convert standalone
+> Cursor `@relative/path` references when they are syntactically recognizable.
+> If a target does not exist in the source workspace, emit a concrete
+> `MISSING_REFERENCE_TARGET` failure naming the source rule, token, and path;
+> otherwise this is a normal transformation.
+>
+> **Current input audit (`/Users/weihe/GamaPlay/flutter_gtw_ui`).** All nine
+> `.cursor/rules/*.mdc` files have `alwaysApply: false` and a nonempty YAML
+> string-list `globs`, so all map to `inclusion: fileMatch` with the same
+> patterns. There are no unsupported frontmatter keys. Two bodies contain
+> migratable `mdc:` links: `api-calling-structure.mdc` (7) and
+> `routing-pattern.mdc` (6). The remaining seven have no `mdc:` links. This
+> input has **zero documented field-level incompatibilities**. The only
+> possible per-item failures during conversion are a filesystem-missing
+> reference target or an I/O/YAML write failure, each of which must be named
+> directly in the report.
+>
+> Primary sources (revalidated 2026-09-02): [Cursor Rules](https://cursor.com/docs/rules)
+> (activation table, glob examples, `@` references) and [Kiro Steering](https://kiro.dev/docs/steering/)
+> (inclusion modes, required `auto` fields, scalar/array `fileMatchPattern`,
+> manual invocation, and `#[[file:...]]` references).
+
 - 查證日期：**2026-09-02**
 - 適用目標：Cursor 現行官方規格 → Kiro IDE 1.x / Kiro CLI 3.x
 - 研究限制：只採 Cursor、Kiro 官方文件，以及兩者共同引用的 Agent Skills 官方規格。本文不把產品需求提示中的 mapping 當成事實來源。

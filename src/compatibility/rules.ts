@@ -9,12 +9,10 @@ export const CURSOR_RULE_FIELDS = [
 export const RULE_CONTRACT = {
   verifiedAt: "2026-09-02",
   sourceUrls: [
-    "https://prod.cursor.com/docs/rules",
+    "https://cursor.com/docs/rules",
     "https://kiro.dev/docs/steering/",
   ],
-  automaticProfiles: [] as readonly string[],
-  reason:
-    "Cursor Rule and Kiro steering differ in applicable surfaces, reference syntax, glob evidence, and precedence; no V1 profile is proven end-to-end equivalent.",
+  automaticProfiles: ["always", "fileMatch", "auto", "manual"] as const,
 } as const;
 
 export function analyzeRule(candidate: RuleCandidate): Analysis {
@@ -22,28 +20,112 @@ export function analyzeRule(candidate: RuleCandidate): Analysis {
   const unknown = fields.filter(
     field => !CURSOR_RULE_FIELDS.includes(field as never),
   );
-  let reason: string = RULE_CONTRACT.reason;
-  if (candidate.discoveryConflict) reason = candidate.discoveryConflict;
-  else if (unknown.length > 0)
-    reason = `Unsupported Cursor Rule field(s): ${unknown.join(", ")}.`;
-  else if (/(^|\s)@[A-Za-z0-9_.\-/]+/m.test(candidate.parsed.body)) {
-    reason =
-      "Cursor-specific @file reference detected; equivalent behavior through Kiro steering cannot be guaranteed.";
-  } else if (candidate.legacy) {
-    reason =
-      "Legacy .cursorrules is Always Apply in Cursor, but the same cross-surface behavior is not proven for Kiro steering.";
+  if (candidate.discoveryConflict)
+    return conflict(candidate, candidate.discoveryConflict);
+  if (candidate.referenceIssue)
+    return conflict(candidate, candidate.referenceIssue);
+  if (unknown.length > 0)
+    return conflict(
+      candidate,
+      `UNSUPPORTED_CURSOR_FIELD: ${unknown.map(field => `${field}=${formatValue(candidate.parsed.frontmatter[field])}`).join(", ")}.`,
+    );
+  if (candidate.legacy)
+    return conflict(
+      candidate,
+      "LEGACY_CURSOR_RULE: .cursorrules has no structured activation mode.",
+    );
+
+  const alwaysApply = candidate.parsed.frontmatter.alwaysApply;
+  if (typeof alwaysApply !== "boolean")
+    return conflict(
+      candidate,
+      `INVALID_ALWAYS_APPLY: alwaysApply=${formatValue(alwaysApply)}; expected a boolean.`,
+    );
+  if (alwaysApply)
+    return transform(candidate, "Always-included Rule maps to Kiro steering.");
+
+  const globs = candidate.parsed.frontmatter.globs;
+  if (globs !== undefined) {
+    if (typeof globs === "string" && isUnverifiedGlob(globs))
+      return conflict(
+        candidate,
+        `UNVERIFIED_GLOB_PATTERN: globs=${formatValue(globs)}.`,
+      );
+    const patterns = normalizeGlobs(globs);
+    if (!patterns)
+      return conflict(
+        candidate,
+        `INVALID_GLOB: globs=${formatValue(globs)}; expected a non-empty string or string array.`,
+      );
+    const unverified = patterns.find(isUnverifiedGlob);
+    if (unverified)
+      return conflict(
+        candidate,
+        `UNVERIFIED_GLOB_PATTERN: globs=${formatValue(unverified)}.`,
+      );
+    return transform(
+      candidate,
+      "File-matched Rule maps to Kiro fileMatch steering.",
+    );
   }
+  if (
+    typeof candidate.parsed.frontmatter.description === "string" &&
+    candidate.parsed.frontmatter.description.trim() !== ""
+  )
+    return transform(
+      candidate,
+      "Description-matched Rule maps to Kiro auto steering.",
+    );
+  return transform(candidate, "Manual Rule maps to Kiro manual steering.");
+}
+
+export function normalizeGlobs(value: unknown): string[] | undefined {
+  const values =
+    typeof value === "string"
+      ? value
+          .split(",")
+          .map(item => item.trim())
+          .filter(Boolean)
+      : value;
+  if (
+    !Array.isArray(values) ||
+    values.length === 0 ||
+    values.some(item => typeof item !== "string" || item.trim() === "")
+  )
+    return undefined;
+  return values;
+}
+
+function isUnverifiedGlob(pattern: string): boolean {
+  return (
+    pattern.startsWith("!") ||
+    /[{}\[\]]/.test(pattern) ||
+    pattern.includes("@(")
+  );
+}
+
+function formatValue(value: unknown): string {
+  const formatted = JSON.stringify(value);
+  return formatted === undefined ? String(value) : formatted;
+}
+
+function transform(candidate: RuleCandidate, summary: string): Analysis {
+  return {
+    candidate,
+    status: "TRANSFORM",
+    summary,
+    fields: Object.keys(candidate.parsed.frontmatter),
+    selected: true,
+  };
+}
+
+function conflict(candidate: RuleCandidate, reason: string): Analysis {
   return {
     candidate,
     status: "CONFLICT",
-    summary:
-      "Strict Rule migration is not proven by current official contracts",
+    summary: "Rule contains a source value that cannot be translated safely",
     reason,
-    cursorBehavior:
-      "Cursor Rules apply through Cursor Agent Chat activation and Cursor-specific references/glob semantics.",
-    kiroGap:
-      "Kiro steering has similar modes but its surfaces, references, matching and precedence are not documented as 1:1.",
-    fields,
+    fields: Object.keys(candidate.parsed.frontmatter),
     selected: false,
   };
 }

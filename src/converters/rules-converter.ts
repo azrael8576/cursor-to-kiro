@@ -1,7 +1,47 @@
+import path from "node:path";
+import { stringify } from "yaml";
 import type { ManifestEntry, RuleCandidate } from "../domain.js";
+import { normalizeGlobs } from "../compatibility/rules.js";
+import { generatedText } from "../util/text.js";
 
-export function convertRule(_candidate: RuleCandidate): ManifestEntry[] {
-  throw new Error(
-    "No Cursor Rule profile is allowlisted for automatic migration in the 2026-09-02 strict contract",
-  );
+export function convertRule(candidate: RuleCandidate): ManifestEntry[] {
+  const outputName = candidate.identity
+    .replace(/^~?\/?\.?cursor\/rules\//, "")
+    .replace(/\.mdc$/, ".md")
+    .replaceAll("/", "--");
+  const content = `---\n${stringify(destinationFrontmatter(candidate))}---\n${convertReferences(candidate.parsed.body)}`;
+  return [
+    {
+      absolutePath: path.join(candidate.destinationRuleRoot, outputName),
+      displayPath: `.kiro/steering/${outputName}`,
+      bytes: generatedText(content),
+      artifactId: candidate.id,
+      semanticKey: `rule:${candidate.identity}`,
+    },
+  ];
+}
+
+function destinationFrontmatter(
+  candidate: RuleCandidate,
+): Record<string, unknown> {
+  const { alwaysApply, description, globs } = candidate.parsed.frontmatter;
+  if (alwaysApply === true) return { inclusion: "always" };
+  if (globs !== undefined)
+    return { inclusion: "fileMatch", fileMatchPattern: normalizeGlobs(globs) };
+  if (typeof description === "string" && description.trim() !== "")
+    return {
+      inclusion: "auto",
+      name: path.basename(candidate.identity, ".mdc"),
+      description,
+    };
+  return { inclusion: "manual" };
+}
+
+function convertReferences(body: string): string {
+  return body
+    .replace(/\[[^\]]+\]\(mdc:([^)]+)\)/g, "#[[file:$1]]")
+    .replace(
+      /@((?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+)(?=$|[\s),.;:!?])/g,
+      "#[[file:$1]]",
+    );
 }

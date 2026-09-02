@@ -30,7 +30,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   }
   if (options.scope === "user" || options.scope === "both") {
     groups.push(
-      scanUserRules(options.home),
+      scanUserRules(options.home, options.kiroHome),
       scanUserSkills(options.home, options.kiroHome),
       scanUserSubagents(options.home),
       scanUserHooks(options.home),

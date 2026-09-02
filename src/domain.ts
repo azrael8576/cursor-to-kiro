@@ -25,6 +25,8 @@ export interface RuleCandidate {
   parsed: ParsedMarkdown;
   scope: SourceScope;
   sourceFiles: SourceFile[];
+  destinationRuleRoot: string;
+  referenceIssue?: string;
   discoveryConflict?: string;
 }
 
