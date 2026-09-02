@@ -7,7 +7,7 @@
 
 ![Logo](docs/images/logo.png)
 
-> 中文版說明請見 [docs/README_tw.md](docs/README_tw.md)。
+> 中文版說明請見 [docs/README.zh-TW.md](docs/README.zh-TW.md)。
 
 An interactive CLI that helps you move your Cursor configuration over to Kiro.
 
@@ -20,6 +20,7 @@ Pick the items you want to migrate, and `cursor-to-kiro` automatically converts 
 ```bash
 npm install
 npm run build
+npm link          # Makes the cursor-to-kiro command available globally
 ```
 
 ```bash
