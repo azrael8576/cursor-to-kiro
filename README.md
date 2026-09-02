@@ -1,4 +1,11 @@
-# Cursor → Kiro Migration CLI
+# Cursor to Kiro
+
+
+[![Quality](https://github.com/azrael8576/cursor-to-kiro/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/azrael8576/cursor-to-kiro/actions/workflows/quality.yml)
+[![GitHub release (with filter)](https://img.shields.io/github/v/release/azrael8576/cursor-to-kiro)](https://github.com/azrael8576/cursor-to-kiro/releases)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/azrael8576/cursor-to-kiro/blob/main/LICENSE)
+
+![Logo](docs/images/logo.png)
 
 `cursor-to-kiro` 是一個用來協助團隊將 Cursor 設定遷移到 Kiro 的互動式 CLI。
 
