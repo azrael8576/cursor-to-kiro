@@ -14,11 +14,28 @@ describe("transaction rollback", () => {
     const blocker = path.join(root, "blocker");
     await writeFile(blocker, "pre-existing", "utf8");
     const entries: ManifestEntry[] = [
-      { absolutePath: path.join(root, "created", "one.txt"), displayPath: "created/one.txt", bytes: generatedText("one"), artifactId: "a", semanticKey: "a" },
-      { absolutePath: path.join(blocker, "nested", "two.txt"), displayPath: "blocker/nested/two.txt", bytes: generatedText("two"), artifactId: "b", semanticKey: "b" },
+      {
+        absolutePath: path.join(root, "created", "one.txt"),
+        displayPath: "created/one.txt",
+        bytes: generatedText("one"),
+        artifactId: "a",
+        semanticKey: "a",
+      },
+      {
+        absolutePath: path.join(blocker, "nested", "two.txt"),
+        displayPath: "blocker/nested/two.txt",
+        bytes: generatedText("two"),
+        artifactId: "b",
+        semanticKey: "b",
+      },
     ];
-    await expect(commitTransaction(entries, { files: new Map() })).rejects.toMatchObject({ rollbackPerformed: true });
-    await expect(access(entries[0]!.absolutePath)).rejects.toBeTruthy();
+    await expect(
+      commitTransaction(entries, { files: new Map() }),
+    ).rejects.toMatchObject({ rollbackPerformed: true });
+    const createdEntry = entries[0];
+    if (!createdEntry)
+      throw new Error("Test fixture must include a created entry");
+    await expect(access(createdEntry.absolutePath)).rejects.toBeTruthy();
     await expect(access(blocker)).resolves.toBeUndefined();
   });
 });

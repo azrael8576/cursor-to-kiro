@@ -8,7 +8,9 @@ export function lf(value: string): string {
 
 export function generatedText(value: string): Uint8Array {
   const normalized = lf(value);
-  return UTF8.encode(normalized.endsWith("\n") ? normalized : `${normalized}\n`);
+  return UTF8.encode(
+    normalized.endsWith("\n") ? normalized : `${normalized}\n`,
+  );
 }
 
 export function decode(bytes: Uint8Array): string {
@@ -20,5 +22,7 @@ export function hashBytes(bytes: Uint8Array): string {
 }
 
 export function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
-  return left.byteLength === right.byteLength && Buffer.compare(left, right) === 0;
+  return (
+    left.byteLength === right.byteLength && Buffer.compare(left, right) === 0
+  );
 }

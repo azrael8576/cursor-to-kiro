@@ -1,13 +1,17 @@
 import readline from "node:readline";
 
-export interface MenuResult { index: number; cancelled: boolean }
+export interface MenuResult {
+  index: number;
+  cancelled: boolean;
+}
 
 export async function keyMenu(
   render: (index: number) => string,
   length: number,
   initial = 0,
 ): Promise<MenuResult> {
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return { index: initial, cancelled: false };
+  if (!process.stdin.isTTY || !process.stdout.isTTY)
+    return { index: initial, cancelled: false };
   readline.emitKeypressEvents(process.stdin);
   const previousRaw = process.stdin.isRaw;
   process.stdin.setRawMode(true);
@@ -18,9 +22,9 @@ export async function keyMenu(
   };
   draw();
   try {
-    return await new Promise<MenuResult>((resolve) => {
+    return await new Promise<MenuResult>(resolve => {
       const onKey = (_input: string, key: readline.Key): void => {
-        if (key.ctrl && key.name === "c" || key.name === "escape") {
+        if ((key.ctrl && key.name === "c") || key.name === "escape") {
           process.stdin.off("keypress", onKey);
           resolve({ index, cancelled: true });
         } else if (key.name === "up") {

@@ -11,38 +11,69 @@ const TITLES: Record<Analysis["candidate"]["kind"], string> = {
 };
 
 function outputsFor(entries: ManifestEntry[], id: string): string[] {
-  return entries.filter((entry) => entry.artifactId === id).map((entry) => entry.displayPath).sort();
+  return entries
+    .filter(entry => entry.artifactId === id)
+    .map(entry => entry.displayPath)
+    .sort();
 }
 
 export function renderMigrationReport(plan: MigrationPlan): string {
-  const lines = ["# Cursor → Kiro Migration Report", "", "Generated deterministically from the selected source tree.", ""];
-  for (const kind of ["rule", "skill", "subagent", "hook", "agents-md"] as const) {
-    const group = plan.analyses.filter((analysis) => analysis.candidate.kind === kind);
+  const lines = [
+    "# Cursor → Kiro Migration Report",
+    "",
+    "Generated deterministically from the selected source tree.",
+    "",
+  ];
+  for (const kind of [
+    "rule",
+    "skill",
+    "subagent",
+    "hook",
+    "agents-md",
+  ] as const) {
+    const group = plan.analyses.filter(
+      analysis => analysis.candidate.kind === kind,
+    );
     lines.push(`## ${TITLES[kind]}`, "");
     if (group.length === 0) {
       lines.push("None detected.", "");
       continue;
     }
     for (const analysis of group) {
-      const marker = analysis.status === "NATIVE" ? "●" : analysis.selected ? "✓" : "✗";
-      lines.push(`### ${marker} ${analysis.candidate.identity}`, "", `- Status: \`${analysis.status}\``);
+      const marker =
+        analysis.status === "NATIVE" ? "●" : analysis.selected ? "✓" : "✗";
+      lines.push(
+        `### ${marker} ${analysis.candidate.identity}`,
+        "",
+        `- Status: \`${analysis.status}\``,
+      );
       if (analysis.selected) {
-        for (const output of outputsFor(plan.manifest, analysis.candidate.id)) lines.push(`- Creates: \`${output}\``);
+        for (const output of outputsFor(plan.manifest, analysis.candidate.id))
+          lines.push(`- Creates: \`${output}\``);
       } else if (analysis.status === "CONFLICT") {
         lines.push("- Result: **NOT MIGRATED**");
       }
       lines.push(`- Summary: ${analysis.summary}`);
       if (analysis.reason) lines.push(`- Reason: ${analysis.reason}`);
-      if (analysis.cursorBehavior) lines.push(`- Cursor behavior: ${analysis.cursorBehavior}`);
-      if (analysis.kiroGap) lines.push(`- Why Kiro cannot strictly preserve it: ${analysis.kiroGap}`);
+      if (analysis.cursorBehavior)
+        lines.push(`- Cursor behavior: ${analysis.cursorBehavior}`);
+      if (analysis.kiroGap)
+        lines.push(
+          `- Why Kiro cannot strictly preserve it: ${analysis.kiroGap}`,
+        );
       lines.push("");
     }
   }
-  const migrated = plan.analyses.filter((analysis) => analysis.selected).length;
-  const native = plan.analyses.filter((analysis) => analysis.status === "NATIVE").length;
-  const conflicts = plan.analyses.filter((analysis) => analysis.status === "CONFLICT").length;
+  const migrated = plan.analyses.filter(analysis => analysis.selected).length;
+  const native = plan.analyses.filter(
+    analysis => analysis.status === "NATIVE",
+  ).length;
+  const conflicts = plan.analyses.filter(
+    analysis => analysis.status === "CONFLICT",
+  ).length;
   lines.push(
-    "## Summary", "",
+    "## Summary",
+    "",
     `- Migrated: ${migrated}`,
     `- Native: ${native}`,
     `- Not migrated: ${conflicts}`,

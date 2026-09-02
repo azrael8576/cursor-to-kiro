@@ -9,7 +9,10 @@ afterEach(cleanupTemporary);
 describe("CLI operational contract", () => {
   it("supports help and version", async () => {
     const output: string[] = [];
-    const io = { log: (value: unknown) => output.push(String(value)), error: (value: unknown) => output.push(String(value)) };
+    const io = {
+      log: (value: unknown) => output.push(String(value)),
+      error: (value: unknown) => output.push(String(value)),
+    };
     expect(await runCli(["--version"], io)).toBe(0);
     expect(output).toContain("0.1.0");
   });
@@ -17,20 +20,37 @@ describe("CLI operational contract", () => {
   it("performs a non-writing dry run with expected conflicts", async () => {
     const root = await fixtureWorkspace("golden/input");
     const output: string[] = [];
-    const io = { log: (value: unknown) => output.push(String(value)), error: (value: unknown) => output.push(String(value)) };
-    expect(await runCli(["--root", root, "--scope", "workspace", "--dry-run"], io)).toBe(0);
-    expect(output.join("\n")).toContain("Dry run complete. No files were written.");
+    const io = {
+      log: (value: unknown) => output.push(String(value)),
+      error: (value: unknown) => output.push(String(value)),
+    };
+    expect(
+      await runCli(["--root", root, "--scope", "workspace", "--dry-run"], io),
+    ).toBe(0);
+    expect(output.join("\n")).toContain(
+      "Dry run complete. No files were written.",
+    );
     expect(output.join("\n")).toContain("Not migrated:");
   });
 
   it("commits through the CLI and is idempotent", async () => {
     const root = await fixtureWorkspace("golden/input");
     const output: string[] = [];
-    const io = { log: (value: unknown) => output.push(String(value)), error: (value: unknown) => output.push(String(value)) };
+    const io = {
+      log: (value: unknown) => output.push(String(value)),
+      error: (value: unknown) => output.push(String(value)),
+    };
     const args = ["--root", root, "--scope", "workspace", "--yes"];
     expect(await runCli(args, io)).toBe(0);
-    expect(await readFile(path.join(root, ".kiro", "skills", "code-review", "SKILL.md"), "utf8")).toContain("name: code-review");
-    expect(await readFile(path.join(root, ".cursor-to-kiro-report.md"), "utf8")).toContain("Cursor → Kiro Migration Report");
+    expect(
+      await readFile(
+        path.join(root, ".kiro", "skills", "code-review", "SKILL.md"),
+        "utf8",
+      ),
+    ).toContain("name: code-review");
+    expect(
+      await readFile(path.join(root, ".cursor-to-kiro-report.md"), "utf8"),
+    ).toContain("Cursor → Kiro Migration Report");
     output.length = 0;
     expect(await runCli(args, io)).toBe(0);
     expect(output.join("\n")).toContain("Created: 0; already migrated: 3.");

@@ -14,16 +14,20 @@ export function analyzeAgentsMd(candidate: AgentsMdCandidate): Analysis {
     return {
       candidate,
       status: "NATIVE",
-      summary: "Root AGENTS.md is read natively by Cursor and Kiro and remains unchanged",
+      summary:
+        "Root AGENTS.md is read natively by Cursor and Kiro and remains unchanged",
       selected: false,
     };
   }
   return {
     candidate,
     status: "CONFLICT",
-    summary: "Nested AGENTS.md remains unchanged, but semantic equivalence is not proven",
-    reason: "Kiro documents nested discovery but not Cursor's subtree-only composition and specificity precedence.",
-    cursorBehavior: "Cursor scopes nested AGENTS.md to its directory subtree and merges parents with the most specific instructions winning.",
+    summary:
+      "Nested AGENTS.md remains unchanged, but semantic equivalence is not proven",
+    reason:
+      "Kiro documents nested discovery but not Cursor's subtree-only composition and specificity precedence.",
+    cursorBehavior:
+      "Cursor scopes nested AGENTS.md to its directory subtree and merges parents with the most specific instructions winning.",
     kiroGap: "Kiro does not document the same subtree and precedence contract.",
     selected: false,
   };

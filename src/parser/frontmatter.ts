@@ -14,7 +14,9 @@ export function parseMarkdown(rawInput: string): ParsedMarkdown {
   const yaml = raw.slice(4, closing);
   const document = parseDocument(yaml, { uniqueKeys: true });
   if (document.errors.length > 0) {
-    throw new FrontmatterError(document.errors.map((error) => error.message).join("; "));
+    throw new FrontmatterError(
+      document.errors.map(error => error.message).join("; "),
+    );
   }
   const value = document.toJS({ maxAliasCount: 0 }) as unknown;
   if (value === null || typeof value !== "object" || Array.isArray(value)) {

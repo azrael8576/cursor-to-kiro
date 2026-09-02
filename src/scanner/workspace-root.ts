@@ -18,7 +18,8 @@ export async function resolveWorkspaceRoot(
   if (override) {
     const root = path.resolve(cwd, override);
     const stat = await lstat(root);
-    if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`Workspace root must be a real directory: ${root}`);
+    if (stat.isSymbolicLink() || !stat.isDirectory())
+      throw new Error(`Workspace root must be a real directory: ${root}`);
     return { root };
   }
   const start = path.resolve(cwd);
@@ -31,6 +32,7 @@ export async function resolveWorkspaceRoot(
   }
   return {
     root: start,
-    warning: "No containing .git file or directory was found; using the current working directory.",
+    warning:
+      "No containing .git file or directory was found; using the current working directory.",
   };
 }

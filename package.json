@@ -20,15 +20,25 @@
     "build": "tsc -p tsconfig.json",
     "postbuild": "chmod +x dist/index.js",
     "dev": "tsx src/index.ts",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.check.json",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test",
+    "fix": "biome check --write ."
+  },
+  "lint-staged": {
+    "*.{ts,json}": "biome format --write"
   },
   "dependencies": {
     "yaml": "^2.8.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.11",
     "@types/node": "^24.3.0",
+    "lint-staged": "^15.5.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

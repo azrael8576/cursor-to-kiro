@@ -1,1 +1,12 @@
-{"version":1,"hooks":{"preToolUse":[{"type":"command","command":"node json-protocol.mjs","failClosed":true}]}}
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "command": "node json-protocol.mjs",
+        "failClosed": true
+      }
+    ]
+  }
+}

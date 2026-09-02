@@ -18,9 +18,16 @@ The current contract was verified against official Cursor and Kiro documentation
 
 ```text
 npm install
-npm test
+npm run check
 npm run build
 node dist/index.js --help
+```
+
+Enable the tracked pre-commit hook once per clone. It formats staged TypeScript
+and JSON files, re-stages those fixes, then runs lint and type checks:
+
+```text
+git config core.hooksPath .githooks
 ```
 
 After `npm link`:

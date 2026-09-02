@@ -8,9 +8,21 @@ const OPTIONS: Array<{ label: string; value: MigrationScope }> = [
 ];
 
 export async function promptScope(): Promise<MigrationScope | undefined> {
-  const result = await keyMenu((index) => [
-    "Cursor → Kiro Migration", "", "Select migration scope:", "",
-    ...OPTIONS.map((option, item) => `${item === index ? "❯" : " "} ${option.label}`),
-  ].join("\n"), OPTIONS.length);
-  return result.cancelled ? undefined : OPTIONS[result.index]!.value;
+  const result = await keyMenu(
+    index =>
+      [
+        "Cursor → Kiro Migration",
+        "",
+        "Select migration scope:",
+        "",
+        ...OPTIONS.map(
+          (option, item) => `${item === index ? "❯" : " "} ${option.label}`,
+        ),
+      ].join("\n"),
+    OPTIONS.length,
+  );
+  if (result.cancelled) return undefined;
+  const selection = OPTIONS[result.index];
+  if (!selection) throw new Error(`Invalid scope selection: ${result.index}`);
+  return selection.value;
 }
