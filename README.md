@@ -2,18 +2,20 @@
 
 
 [![Quality](https://github.com/azrael8576/cursor-to-kiro/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/azrael8576/cursor-to-kiro/actions/workflows/quality.yml)
-[![GitHub release (with filter)](https://img.shields.io/github/v/release/azrael8576/cursor-to-kiro)](https://github.com/azrael8576/cursor-to-kiro/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/azrael8576/cursor-to-kiro)](https://github.com/azrael8576/cursor-to-kiro/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/azrael8576/cursor-to-kiro/blob/main/LICENSE)
 
 ![Logo](docs/images/logo.png)
 
-一個互動式 CLI，協助你把 Cursor 設定搬到 Kiro。
+> 中文版說明請見 [docs/README_tw.md](docs/README_tw.md)。
 
-挑選要遷移的項目，`cursor-to-kiro` 會自動轉換相容的設定，並在完成後清楚列出哪些項目沒有對應、需要人工確認。
+An interactive CLI that helps you move your Cursor configuration over to Kiro.
+
+Pick the items you want to migrate, and `cursor-to-kiro` automatically converts the compatible settings. When it finishes, it clearly lists which items have no equivalent and need manual review.
 
 ---
 
-## 安裝與使用
+## Install & Use
 
 ```bash
 npm install
@@ -27,66 +29,66 @@ cursor-to-kiro
 
 ---
 
-## 相容性
+## Compatibility
 
-支援四類設定：**Rules**、**Skills**、**Subagents**、**Hooks**。
+Four categories of configuration are supported: **Rules**, **Skills**, **Subagents**, and **Hooks**.
 
-| 圖示 | 意義 |
+| Icon | Meaning |
 | --- | --- |
-| ✅ | 支援，直接轉換 |
-| ⚠️ | 部分支援，轉換後會標註差異或產生待確認草稿 |
-| ❌ | 不支援，會逐項回報 |
+| ✅ | Supported, converted directly |
+| ⚠️ | Partially supported; the conversion flags the difference or produces a draft that needs review |
+| ❌ | Not supported; reported item by item |
 
 ### Rules
 
-| 項目 | 狀態 |
+| Item | Status |
 | --- | --- |
 | `.cursor/rules/**/*.mdc` Project Rules | ✅ |
-| `alwaysApply` / `globs` / `description` 啟用模式 | ✅ |
-| 正文中的檔案引用（`mdc:` / `@path`） | ✅ |
+| `alwaysApply` / `globs` / `description` activation modes | ✅ |
+| File references in the body (`mdc:` / `@path`) | ✅ |
 | Legacy `.cursorrules` | ❌ |
-| 未知 frontmatter 欄位 | ❌ |
-| 進階 glob 語法（`!`、`{}`、`[]`、extglob） | ❌ |
-| 遺失的引用目標、symlink、discovery conflict | ❌ |
+| Unknown frontmatter fields | ❌ |
+| Advanced glob syntax (`!`, `{}`, `[]`, extglob) | ❌ |
+| Missing reference targets, symlinks, discovery conflicts | ❌ |
 
 ### Skills
 
-| 項目 | 狀態 |
+| Item | Status |
 | --- | --- |
-| 標準 Agent Skills（frontmatter + bundle） | ✅ |
-| 資源結構與檔案權限 | ✅ |
-| 相對 Markdown 連結（含跨套件） | ✅ |
-| `icon` / `color` | ⚠️ 保留於 metadata，不保證 badge 外觀 |
-| `disable-model-invocation: true` | ⚠️ 轉為 manual steering |
-| `paths` / `globs` 載入條件 | ⚠️ 標註載入時機差異 |
-| Subtree skills | ⚠️ 無法驗證 patterns 交集時產生草稿 |
-| `allowed-tools`、manual scope、未知欄位 | ⚠️ 保留來源欄位，不自動載入 |
-| 檔案名稱、description 長度等標準限制 | ✅ 轉換前先驗證 |
+| Standard Agent Skills (frontmatter + bundle) | ✅ |
+| Resource structure and file permissions | ✅ |
+| Relative Markdown links (including cross-package) | ✅ |
+| `icon` / `color` | ⚠️ Preserved in metadata; badge appearance not guaranteed |
+| `disable-model-invocation: true` | ⚠️ Converted to manual steering |
+| `paths` / `globs` load conditions | ⚠️ Load-timing differences are flagged |
+| Subtree skills | ⚠️ Produces a draft when the pattern intersection cannot be verified |
+| `allowed-tools`, manual scope, unknown fields | ⚠️ Source fields preserved; not auto-loaded |
+| Standard limits such as file name and description length | ✅ Validated before conversion |
 
 ### Subagents
 
-| 項目 | 狀態 |
+| Item | Status |
 | --- | --- |
-| 一般角色（name / description / 正文） | ✅ |
-| 檔案引用轉為 agent resources（`file://` / `skill://`） | ✅ |
-| `readonly: true` | ⚠️ 僅提供唯讀檔案存取，較 Cursor 嚴格 |
-| `model: inherit` / 未指定 | ⚠️ 使用 Kiro 預設，不保證繼承 parent model |
-| 指定 model、背景排程、未知欄位 | ⚠️ 產生待確認草稿 |
-| Cursor 的 MCP / steering 自動繼承 | ❌ |
+| Ordinary roles (name / description / body) | ✅ |
+| File references converted to agent resources (`file://` / `skill://`) | ✅ |
+| `readonly: true` | ⚠️ Provides read-only file access only; stricter than Cursor |
+| `model: inherit` / unspecified | ⚠️ Uses the Kiro default; parent model inheritance not guaranteed |
+| Specified model, background scheduling, unknown fields | ⚠️ Produces a draft that needs review |
+| Cursor's automatic MCP / steering inheritance | ❌ |
 
 ### Hooks
 
-> 所有 hook 產物預設停用（`enabled: false`）並標記為 DRAFT。請以目標 Kiro 版本驗證後再啟用。
+> All hook artifacts are disabled by default (`enabled: false`) and marked as DRAFT. Verify against your target Kiro version before enabling them.
 
-| Cursor 事件 | Kiro 對應 | 狀態 |
+| Cursor event | Kiro equivalent | Status |
 | --- | --- | --- |
 | `sessionStart` | `SessionStart` | ✅ |
 | `preToolUse` / `postToolUse` | `PreToolUse` / `PostToolUse` | ✅ |
 | `beforeSubmitPrompt` | `UserPromptSubmit` | ✅ |
 | `stop` | `Stop` | ✅ |
-| `beforeReadFile` | `PreToolUse` + read 過濾 | ✅ |
-| shell / MCP 執行前後 | 工具事件 + adapter 轉換 | ⚠️ 需驗證 |
-| `afterFileEdit` | `PostFileSave` | ⚠️ 需驗證觸發與 payload 差異 |
-| `sessionEnd` 等無對應事件 | — | ❌ |
+| `beforeReadFile` | `PreToolUse` + read filtering | ✅ |
+| Before/after shell / MCP execution | Tool events + adapter conversion | ⚠️ Needs verification |
+| `afterFileEdit` | `PostFileSave` | ⚠️ Trigger and payload differences need verification |
+| `sessionEnd` and other events with no equivalent | — | ❌ |
 
 ---
