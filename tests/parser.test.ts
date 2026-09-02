@@ -17,6 +17,14 @@ describe("frontmatter parser", () => {
     );
     expect(() => parseMarkdown("---\nname: a")).toThrow(FrontmatterError);
   });
+
+  it("explains how to quote a literal value that YAML reads as an alias", () => {
+    expect(() =>
+      parseMarkdown("---\nglobs: **/*.sh\n---\nShell rules\n"),
+    ).toThrow(
+      'INVALID_YAML_ALIAS: `globs: **/*.sh` begins with `*`, which YAML interprets as an alias. If this is a literal value, quote it: `globs: "**/*.sh"`.',
+    );
+  });
 });
 
 describe("hooks parser", () => {

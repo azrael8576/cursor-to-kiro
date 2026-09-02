@@ -2,6 +2,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { scan } from "../src/scanner/index.js";
 import { createMigrationPlan } from "../src/planner/migration-plan.js";
+import { renderMigrationReport } from "../src/report/migration-report.js";
 import {
   cleanupTemporary,
   fixtureWorkspace,
@@ -111,6 +112,32 @@ describe("compatibility analysis", () => {
     expect(reasonFor(".cursor/rules/missing-reference.mdc")).toBe(
       "MISSING_REFERENCE_TARGET: mdc:lib/missing.dart.",
     );
+  });
+
+  it("reports a YAML alias conflict with a concrete correction", async () => {
+    const root = await tempDirectory();
+    await writeText(
+      root,
+      ".cursor/rules/shell.mdc",
+      "---\nalwaysApply: false\nglobs: **/*.sh\n---\nShell rules\n",
+    );
+    const plan = await createMigrationPlan(
+      (
+        await scan({
+          root,
+        })
+      ).candidates,
+    );
+
+    const rule = plan.analyses[0];
+    expect(rule?.status).toBe("CONFLICT");
+    expect(rule?.reason).toBe(
+      'INVALID_YAML_ALIAS: `globs: **/*.sh` begins with `*`, which YAML interprets as an alias. If this is a literal value, quote it: `globs: "**/*.sh"`.',
+    );
+    const report = renderMigrationReport(plan);
+    expect(report).toContain("needs attention");
+    expect(report).toContain("- Why: INVALID_YAML_ALIAS:");
+    expect(report).toContain('quote it: `globs: "**/*.sh"`.');
   });
 
   it("transforms always, auto, manual, and scalar multi-glob Rule modes", async () => {

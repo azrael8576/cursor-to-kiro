@@ -18,7 +18,14 @@ export function parseMarkdown(rawInput: string): ParsedMarkdown {
       document.errors.map(error => error.message).join("; "),
     );
   }
-  const value = document.toJS({ maxAliasCount: 0 }) as unknown;
+  let value: unknown;
+  try {
+    value = document.toJS({ maxAliasCount: 0 });
+  } catch (error) {
+    if (errorMessage(error) === "Alias resolution is disabled")
+      throw new FrontmatterError(aliasResolutionMessage(yaml));
+    throw error;
+  }
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new FrontmatterError("Frontmatter must be a YAML mapping");
   }
@@ -27,4 +34,17 @@ export function parseMarkdown(rawInput: string): ParsedMarkdown {
     frontmatter: value as Record<string, unknown>,
     raw,
   };
+}
+
+function errorMessage(error: unknown): string | undefined {
+  return error instanceof Error ? error.message : undefined;
+}
+
+function aliasResolutionMessage(yaml: string): string {
+  const literalAlias = yaml.match(/^([A-Za-z][A-Za-z0-9_-]*):\s*(\*\S.*)$/m);
+  if (literalAlias) {
+    const [, field, value] = literalAlias;
+    return `INVALID_YAML_ALIAS: \`${field}: ${value}\` begins with \`*\`, which YAML interprets as an alias. If this is a literal value, quote it: \`${field}: "${value}"\`.`;
+  }
+  return "INVALID_YAML_ALIAS: YAML aliases are disabled. If an alias-like value is literal text, quote it.";
 }

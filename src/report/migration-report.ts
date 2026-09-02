@@ -20,7 +20,7 @@ export function renderMigrationReport(plan: MigrationPlan): string {
   const lines = [
     "# Cursor → Kiro Migration Report",
     "",
-    "Generated deterministically from the selected source tree.",
+    "Generated deterministically from the selected source tree. This report explains what will migrate and what needs attention.",
     "",
   ];
   for (const kind of ["rule", "skill", "subagent", "hook"] as const) {
@@ -38,22 +38,22 @@ export function renderMigrationReport(plan: MigrationPlan): string {
       lines.push(
         `### ${marker} ${analysis.candidate.identity}`,
         "",
-        `- Status: \`${analysis.status}\``,
+        `- Status: \`${analysis.status}\`${statusExplanation(analysis.status)}`,
       );
       if (analysis.selected) {
         for (const output of outputsFor(plan.manifest, analysis.candidate.id))
-          lines.push(`- Creates: \`${output}\``);
+          lines.push(`- Output: \`${output}\``);
       } else if (analysis.status === "CONFLICT") {
-        lines.push("- Result: **NOT MIGRATED**");
+        lines.push("- Result: **Not migrated automatically.**");
       }
       if (analysis.selected && analysis.disposition === "draft")
         lines.push(
           "- Result: **DRAFT — not activated; resolve the listed differences before enabling**",
         );
-      lines.push(`- Summary: ${analysis.summary}`);
+      lines.push(`- Migration: ${analysis.summary}`);
       for (const change of analysis.changes ?? [])
-        lines.push(`- Conversion: ${change}`);
-      if (analysis.reason) lines.push(`- Reason: ${analysis.reason}`);
+        lines.push(`- Detail: ${change}`);
+      if (analysis.reason) lines.push(`- Why: ${analysis.reason}`);
       if (analysis.cursorBehavior)
         lines.push(`- Cursor behavior: ${analysis.cursorBehavior}`);
       if (analysis.kiroGap)
@@ -87,6 +87,13 @@ export function renderMigrationReport(plan: MigrationPlan): string {
     "",
   );
   return lines.join("\n");
+}
+
+function statusExplanation(status: Analysis["status"]): string {
+  if (status === "TRANSFORM") return " — will migrate";
+  if (status === "NATIVE") return " — already supported";
+  if (status === "EXACT") return " — equivalent configuration";
+  return " — needs attention";
 }
 
 export function reportEntry(root: string, plan: MigrationPlan): ManifestEntry {
