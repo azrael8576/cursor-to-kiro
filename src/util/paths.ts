@@ -22,12 +22,3 @@ export function sortByIdentity<T extends { identity: string }>(
     stableCompare(left.identity, right.identity),
   );
 }
-
-export function displayUserPath(home: string, absolutePath: string): string {
-  const relative = path.relative(home, absolutePath);
-  if (relative === "") return "~";
-  if (!relative.startsWith("..") && !path.isAbsolute(relative)) {
-    return `~/${toPosixPath(relative)}`;
-  }
-  return toPosixPath(absolutePath);
-}

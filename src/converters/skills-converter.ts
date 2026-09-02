@@ -17,11 +17,9 @@ export function convertSkill(candidate: SkillCandidate): ManifestEntry[] {
   return candidate.sourceFiles.map(file => {
     const relative = path.relative(sourceDirectory, file.absolutePath);
     const absolutePath = path.join(destinationDirectory, relative);
-    const scopePrefix =
-      candidate.scope === "user" ? "~/.kiro/skills" : ".kiro/skills";
     return {
       absolutePath,
-      displayPath: `${scopePrefix}/${candidate.skillName}/${toPosixPath(relative)}`,
+      displayPath: `.kiro/skills/${candidate.skillName}/${toPosixPath(relative)}`,
       bytes: file.bytes,
       artifactId: candidate.id,
       semanticKey: `skill:${candidate.skillName}:${toPosixPath(relative)}:${hashBytes(file.bytes)}`,

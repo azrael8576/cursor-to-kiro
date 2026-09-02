@@ -35,9 +35,6 @@ describe("strict compatibility analysis", () => {
       (
         await scan({
           root,
-          scope: "workspace",
-          home: root,
-          kiroHome: path.join(root, ".kiro"),
         })
       ).candidates,
     );
@@ -45,23 +42,29 @@ describe("strict compatibility analysis", () => {
     const rule = plan.analyses.find(item => item.candidate.kind === "rule");
     expect(rule?.status).toBe("TRANSFORM");
     expect(rule?.selected).toBe(true);
-    expect(plan.manifest).toHaveLength(1);
-    const [manifest] = plan.manifest;
-    if (!manifest) throw new Error("Expected a Rule manifest entry.");
-    expect(manifest).toMatchObject({
-      displayPath: ".kiro/steering/api.md",
-    });
-    expect(new TextDecoder().decode(manifest.bytes)).toBe(
+    expect(
+      plan.manifest.map(item => [
+        item.displayPath,
+        new TextDecoder().decode(item.bytes),
+      ]),
+    ).toEqual([
       [
-        "---",
-        "inclusion: fileMatch",
-        "fileMatchPattern:",
-        "  - lib/repo/**/*.dart",
-        "---",
-        "Read #[[file:lib/repo/api.dart]], #[[file:lib/repo/model.dart]], and #[[file:template.dart]].",
-        "",
-      ].join("\n"),
-    );
+        ".agents/docs/rules/api.md",
+        "Read #[[file:lib/repo/api.dart]], #[[file:lib/repo/model.dart]], and #[[file:template.dart]].\n",
+      ],
+      [
+        ".kiro/steering/api.md",
+        [
+          "---",
+          "inclusion: fileMatch",
+          "fileMatchPattern:",
+          "  - lib/repo/**/*.dart",
+          "---",
+          "#[[file:.agents/docs/rules/api.md]]",
+          "",
+        ].join("\n"),
+      ],
+    ]);
   });
 
   it("reports the exact unsupported Rule field or value", async () => {
@@ -90,9 +93,6 @@ describe("strict compatibility analysis", () => {
       (
         await scan({
           root,
-          scope: "workspace",
-          home: root,
-          kiroHome: path.join(root, ".kiro"),
         })
       ).candidates,
     );
@@ -139,9 +139,6 @@ describe("strict compatibility analysis", () => {
       (
         await scan({
           root,
-          scope: "workspace",
-          home: root,
-          kiroHome: path.join(root, ".kiro"),
         })
       ).candidates,
     );
@@ -153,15 +150,25 @@ describe("strict compatibility analysis", () => {
         new TextDecoder().decode(item.bytes),
       ]),
     ).toEqual([
-      [".kiro/steering/always.md", "---\ninclusion: always\n---\nAlways\n"],
+      [".agents/docs/rules/always.md", "Always\n"],
+      [
+        ".kiro/steering/always.md",
+        "---\ninclusion: always\n---\n#[[file:.agents/docs/rules/always.md]]\n",
+      ],
+      [".agents/docs/rules/auto.md", "Auto\n"],
       [
         ".kiro/steering/auto.md",
-        "---\ninclusion: auto\nname: auto\ndescription: Use for API work.\n---\nAuto\n",
+        "---\ninclusion: auto\nname: auto\ndescription: Use for API work.\n---\n#[[file:.agents/docs/rules/auto.md]]\n",
       ],
-      [".kiro/steering/manual.md", "---\ninclusion: manual\n---\nManual\n"],
+      [".agents/docs/rules/manual.md", "Manual\n"],
+      [
+        ".kiro/steering/manual.md",
+        "---\ninclusion: manual\n---\n#[[file:.agents/docs/rules/manual.md]]\n",
+      ],
+      [".agents/docs/rules/multi-glob.md", "Multiple\n"],
       [
         ".kiro/steering/multi-glob.md",
-        "---\ninclusion: fileMatch\nfileMatchPattern:\n  - lib/**/*.dart\n  - test/**/*.dart\n---\nMultiple\n",
+        "---\ninclusion: fileMatch\nfileMatchPattern:\n  - lib/**/*.dart\n  - test/**/*.dart\n---\n#[[file:.agents/docs/rules/multi-glob.md]]\n",
       ],
     ]);
   });
@@ -170,9 +177,6 @@ describe("strict compatibility analysis", () => {
     const root = await fixtureWorkspace("golden/input");
     const scanned = await scan({
       root,
-      scope: "workspace",
-      home: await tempDirectory("empty-home-"),
-      kiroHome: path.join(root, ".kiro"),
     });
     const plan = await createMigrationPlan(scanned.candidates);
     expect(
@@ -181,14 +185,8 @@ describe("strict compatibility analysis", () => {
         .map(item => item.candidate.kind),
     ).toEqual(["rule", "skill"]);
     expect(
-      plan.analyses.find(item => item.candidate.identity === "AGENTS.md")
-        ?.status,
-    ).toBe("NATIVE");
-    expect(
-      plan.analyses.find(
-        item => item.candidate.identity === "packages/app/AGENTS.md",
-      )?.status,
-    ).toBe("CONFLICT");
+      plan.analyses.some(item => item.candidate.identity.endsWith("AGENTS.md")),
+    ).toBe(false);
     expect(
       plan.analyses.find(item => item.candidate.kind === "rule")?.status,
     ).toBe("TRANSFORM");
@@ -216,9 +214,6 @@ describe("strict compatibility analysis", () => {
       (
         await scan({
           root,
-          scope: "workspace",
-          home: root,
-          kiroHome: path.join(root, ".kiro"),
         })
       ).candidates,
     );
@@ -249,9 +244,6 @@ describe("strict compatibility analysis", () => {
       (
         await scan({
           root,
-          scope: "workspace",
-          home: root,
-          kiroHome: path.join(root, ".kiro"),
         })
       ).candidates,
     );

@@ -1,7 +1,6 @@
 export type CompatibilityStatus = "EXACT" | "TRANSFORM" | "NATIVE" | "CONFLICT";
-export type ArtifactKind = "rule" | "skill" | "subagent" | "hook" | "agents-md";
-export type MigrationScope = "workspace" | "user" | "both";
-export type SourceScope = "workspace" | "user";
+export type ArtifactKind = "rule" | "skill" | "subagent" | "hook";
+export type SourceScope = "project";
 
 export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 
@@ -25,6 +24,7 @@ export interface RuleCandidate {
   parsed: ParsedMarkdown;
   scope: SourceScope;
   sourceFiles: SourceFile[];
+  canonicalRuleRoot: string;
   destinationRuleRoot: string;
   referenceIssue?: string;
   discoveryConflict?: string;
@@ -40,7 +40,7 @@ export interface SkillCandidate {
   sourceSkillRoot: string;
   sourceScopeRoot: string;
   destinationSkillRoot: string;
-  scopeSemantics: "workspace" | "user" | "nested-subtree";
+  scopeSemantics: "project" | "nested-subtree";
   skillName: string;
   organizationalDepth: number;
   discoveryConflict?: string;
@@ -82,22 +82,11 @@ export interface HookCandidate {
   discoveryConflict?: string;
 }
 
-export interface AgentsMdCandidate {
-  kind: "agents-md";
-  id: string;
-  identity: string;
-  nested: boolean;
-  scope: "workspace";
-  sourceFiles: SourceFile[];
-  discoveryConflict?: string;
-}
-
 export type Candidate =
   | RuleCandidate
   | SkillCandidate
   | SubagentCandidate
-  | HookCandidate
-  | AgentsMdCandidate;
+  | HookCandidate;
 
 export interface Analysis {
   candidate: Candidate;

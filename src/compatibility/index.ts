@@ -1,5 +1,4 @@
 import type { Analysis, Candidate } from "../domain.js";
-import { analyzeAgentsMd } from "./agents-md.js";
 import { analyzeHook } from "./hooks.js";
 import { analyzeRule } from "./rules.js";
 import { analyzeSkill } from "./skills.js";
@@ -15,7 +14,5 @@ export function analyzeCandidate(candidate: Candidate): Analysis {
       return analyzeSubagent(candidate);
     case "hook":
       return analyzeHook(candidate);
-    case "agents-md":
-      return analyzeAgentsMd(candidate);
   }
 }

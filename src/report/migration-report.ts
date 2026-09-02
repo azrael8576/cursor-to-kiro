@@ -7,7 +7,6 @@ const TITLES: Record<Analysis["candidate"]["kind"], string> = {
   skill: "Skills",
   subagent: "Subagents",
   hook: "Hooks",
-  "agents-md": "AGENTS.md",
 };
 
 function outputsFor(entries: ManifestEntry[], id: string): string[] {
@@ -24,13 +23,7 @@ export function renderMigrationReport(plan: MigrationPlan): string {
     "Generated deterministically from the selected source tree.",
     "",
   ];
-  for (const kind of [
-    "rule",
-    "skill",
-    "subagent",
-    "hook",
-    "agents-md",
-  ] as const) {
+  for (const kind of ["rule", "skill", "subagent", "hook"] as const) {
     const group = plan.analyses.filter(
       analysis => analysis.candidate.kind === kind,
     );

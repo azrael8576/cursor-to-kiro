@@ -15,7 +15,5 @@ export function convertAnalysis(analysis: Analysis): ManifestEntry[] {
       return convertSubagent(analysis.candidate);
     case "hook":
       return convertHook(analysis.candidate);
-    case "agents-md":
-      return [];
   }
 }

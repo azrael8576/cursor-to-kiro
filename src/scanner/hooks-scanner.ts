@@ -66,14 +66,6 @@ export function scanWorkspaceHooks(root: string): Promise<HookCandidate[]> {
   return scanHooksFile(
     path.join(root, ".cursor", "hooks.json"),
     ".cursor/hooks.json",
-    "workspace",
-  );
-}
-
-export function scanUserHooks(home: string): Promise<HookCandidate[]> {
-  return scanHooksFile(
-    path.join(home, ".cursor", "hooks.json"),
-    "~/.cursor/hooks.json",
-    "user",
+    "project",
   );
 }

@@ -14,8 +14,6 @@ afterEach(cleanupTemporary);
 function runtime(root: string): MigrationRuntime {
   return {
     cwd: root,
-    home: root,
-    kiroHome: path.join(root, ".kiro"),
     terminal: { input: process.stdin, output: process.stdout },
     temporaryDirectory: tempDirectory,
   };
@@ -30,6 +28,21 @@ describe("CLI operational contract", () => {
     };
     expect(await runCli(["--version"], runtime("."), io)).toBe(0);
     expect(output).toContain("0.1.0");
+    output.length = 0;
+    expect(await runCli(["--help"], runtime("."), io)).toBe(0);
+    expect(output.join("\n")).toContain("Usage:");
+    expect(output.join("\n")).toContain("Examples:");
+    expect(output.join("\n")).not.toContain("--scope");
+  });
+
+  it("rejects the removed scope option", async () => {
+    const output: string[] = [];
+    const io = {
+      log: (value: unknown) => output.push(String(value)),
+      error: (value: unknown) => output.push(String(value)),
+    };
+    expect(await runCli(["--scope", "workspace"], runtime("."), io)).toBe(1);
+    expect(output.join("\n")).toContain("Unknown option '--scope'");
   });
 
   it("performs a non-writing dry run with expected conflicts", async () => {
@@ -39,13 +52,9 @@ describe("CLI operational contract", () => {
       log: (value: unknown) => output.push(String(value)),
       error: (value: unknown) => output.push(String(value)),
     };
-    expect(
-      await runCli(
-        ["--root", root, "--scope", "workspace", "--dry-run"],
-        runtime(root),
-        io,
-      ),
-    ).toBe(0);
+    expect(await runCli(["--root", root, "--dry-run"], runtime(root), io)).toBe(
+      0,
+    );
     expect(output.join("\n")).toContain(
       "Dry run complete. No files were written.",
     );
@@ -59,7 +68,7 @@ describe("CLI operational contract", () => {
       log: (value: unknown) => output.push(String(value)),
       error: (value: unknown) => output.push(String(value)),
     };
-    const args = ["--root", root, "--scope", "workspace", "--yes"];
+    const args = ["--root", root, "--yes"];
     expect(await runCli(args, runtime(root), io)).toBe(0);
     expect(
       await readFile(
@@ -72,6 +81,6 @@ describe("CLI operational contract", () => {
     ).toContain("Cursor → Kiro Migration Report");
     output.length = 0;
     expect(await runCli(args, runtime(root), io)).toBe(0);
-    expect(output.join("\n")).toContain("Created: 0; already migrated: 4.");
+    expect(output.join("\n")).toContain("Created: 0; already migrated: 5.");
   });
 });

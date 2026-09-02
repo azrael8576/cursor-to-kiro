@@ -58,7 +58,7 @@ async function buildSkill(
   const skillName = path.basename(skillDirectory);
   const relativeParts = located.relativeSkillDirectory.split("/");
   const identity =
-    scope === "workspace"
+    scope === "project"
       ? located.skillFileIdentity
       : `${displayPrefix}/${located.skillFileIdentity}`;
   let sourceFiles: SourceFile[] = [];
@@ -139,43 +139,7 @@ export async function scanWorkspaceSkills(
     .filter((value): value is LocatedSkill => value !== undefined);
   return Promise.all(
     located.map(skill =>
-      buildSkill(skill, "workspace", path.join(root, ".kiro", "skills"), ""),
+      buildSkill(skill, "project", path.join(root, ".kiro", "skills"), ""),
     ),
   );
-}
-
-export async function scanUserSkills(
-  home: string,
-  kiroHome: string,
-): Promise<SkillCandidate[]> {
-  const candidates: SkillCandidate[] = [];
-  for (const container of [".cursor", ".agents"] as const) {
-    const root = path.join(home, container, "skills");
-    const files = await walkFiles(root, {
-      include: identity =>
-        identity === "SKILL.md" || identity.endsWith("/SKILL.md"),
-    });
-    for (const file of files) {
-      const directory = path.posix.dirname(file.identity);
-      if (directory === ".") continue;
-      const located: LocatedSkill = {
-        skillFile: file.absolutePath,
-        skillFileIdentity: file.identity,
-        sourceSkillRoot: root,
-        sourceScopeRoot: "~",
-        relativeSkillDirectory: directory,
-        nestedProject: false,
-        symlink: file.symlink,
-      };
-      candidates.push(
-        await buildSkill(
-          located,
-          "user",
-          path.join(kiroHome, "skills"),
-          `~/${container}/skills`,
-        ),
-      );
-    }
-  }
-  return candidates;
 }

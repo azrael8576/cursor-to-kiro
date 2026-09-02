@@ -1,21 +1,14 @@
-import { keyMenu } from "./key-menu.js";
+import * as p from "@clack/prompts";
 import type { MigrationTerminal } from "../runtime.js";
 
 export async function confirmMigration(
   terminal: MigrationTerminal,
 ): Promise<boolean> {
-  const options = ["Migrate", "Cancel"];
-  const result = await keyMenu(
-    terminal,
-    index =>
-      [
-        "Confirm migration",
-        "",
-        ...options.map(
-          (option, item) => `${item === index ? "❯" : " "} ${option}`,
-        ),
-      ].join("\n"),
-    options.length,
-  );
-  return !result.cancelled && result.index === 0;
+  const result = await p.confirm({
+    input: terminal.input,
+    output: terminal.output,
+    message: "Proceed with migration?",
+    initialValue: true,
+  });
+  return !p.isCancel(result) && result;
 }

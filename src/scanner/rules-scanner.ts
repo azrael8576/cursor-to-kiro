@@ -12,6 +12,7 @@ async function scanRuleFile(
   scope: SourceScope,
   legacy: boolean,
   symlink: boolean,
+  canonicalRuleRoot: string,
   destinationRuleRoot: string,
   referenceRoot: string,
 ): Promise<RuleCandidate> {
@@ -23,6 +24,7 @@ async function scanRuleFile(
       legacy,
       scope,
       sourceFiles: [],
+      canonicalRuleRoot,
       destinationRuleRoot,
       parsed: { body: "", frontmatter: {}, raw: "" },
       discoveryConflict:
@@ -43,6 +45,7 @@ async function scanRuleFile(
       legacy,
       scope,
       sourceFiles: [source],
+      canonicalRuleRoot,
       destinationRuleRoot,
       parsed,
       ...(referenceIssue ? { referenceIssue } : {}),
@@ -55,6 +58,7 @@ async function scanRuleFile(
       legacy,
       scope,
       sourceFiles: [],
+      canonicalRuleRoot,
       destinationRuleRoot,
       parsed: { body: "", frontmatter: {}, raw: "" },
       discoveryConflict: errorMessage(error),
@@ -73,9 +77,10 @@ export async function scanWorkspaceRules(
       await scanRuleFile(
         legacyPath,
         ".cursorrules",
-        "workspace",
+        "project",
         true,
         stat.isSymbolicLink(),
+        path.join(root, ".agents", "docs", "rules"),
         path.join(root, ".kiro", "steering"),
         root,
       ),
@@ -93,38 +98,16 @@ export async function scanWorkspaceRules(
       await scanRuleFile(
         file.absolutePath,
         identity,
-        "workspace",
+        "project",
         false,
         file.symlink,
+        path.join(root, ".agents", "docs", "rules"),
         path.join(root, ".kiro", "steering"),
         root,
       ),
     );
   }
   return found;
-}
-
-export async function scanUserRules(
-  home: string,
-  kiroHome: string,
-): Promise<RuleCandidate[]> {
-  const root = path.join(home, ".cursor", "rules");
-  const files = await walkFiles(root, {
-    include: identity => identity.endsWith(".mdc"),
-  });
-  return Promise.all(
-    files.map(file =>
-      scanRuleFile(
-        file.absolutePath,
-        `~/.cursor/rules/${file.identity}`,
-        "user",
-        false,
-        file.symlink,
-        path.join(kiroHome, "steering"),
-        home,
-      ),
-    ),
-  );
 }
 
 function referenceTokens(

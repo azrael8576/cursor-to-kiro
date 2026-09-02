@@ -9,14 +9,23 @@ export function convertRule(candidate: RuleCandidate): ManifestEntry[] {
     .replace(/^~?\/?\.?cursor\/rules\//, "")
     .replace(/\.mdc$/, ".md")
     .replaceAll("/", "--");
-  const content = `---\n${stringify(destinationFrontmatter(candidate))}---\n${convertReferences(candidate.parsed.body)}`;
+  const canonicalDisplayPath = `.agents/docs/rules/${outputName}`;
   return [
+    {
+      absolutePath: path.join(candidate.canonicalRuleRoot, outputName),
+      displayPath: canonicalDisplayPath,
+      bytes: generatedText(convertReferences(candidate.parsed.body)),
+      artifactId: candidate.id,
+      semanticKey: `rule-body:${candidate.identity}`,
+    },
     {
       absolutePath: path.join(candidate.destinationRuleRoot, outputName),
       displayPath: `.kiro/steering/${outputName}`,
-      bytes: generatedText(content),
+      bytes: generatedText(
+        `---\n${stringify(destinationFrontmatter(candidate))}---\n#[[file:${canonicalDisplayPath}]]`,
+      ),
       artifactId: candidate.id,
-      semanticKey: `rule:${candidate.identity}`,
+      semanticKey: `rule-steering:${candidate.identity}`,
     },
   ];
 }

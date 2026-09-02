@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
-import type { MigrationScope } from "../domain.js";
+import * as p from "@clack/prompts";
+import pc from "picocolors";
 import {
   createMigrationPlan,
   prepareMigration,
@@ -9,32 +10,67 @@ import { scan } from "../scanner/index.js";
 import { resolveWorkspaceRoot } from "../scanner/workspace-root.js";
 import { commitTransaction } from "../transaction/transaction.js";
 import { confirmMigration } from "./confirmation.js";
-import { renderPlan, renderTerminalSummary, renderTree } from "./renderer.js";
-import { promptScope } from "./scope-prompt.js";
+import { renderPlan, renderTerminalSummary } from "./renderer.js";
 import { selectArtifacts } from "./tree-selector.js";
+import {
+  AURORA_BACKGROUND,
+  AURORA_BORDER,
+  AURORA_COLORS,
+  AURORA_SPARKS,
+  BOLD,
+  DIM,
+  LOGO_LINES,
+  RESET,
+  TEXT,
+} from "./theme.js";
 
 export const VERSION = "0.1.0";
 
-const HELP = `cursor-to-kiro ${VERSION}
-
-Usage:
-  cursor-to-kiro [options]
-
-Options:
-  --root <path>                  Override workspace root
-  --scope <workspace|user|both> Select scope without prompting
-  --dry-run                      Scan, analyze and preview without writing
-  --yes                          Confirm a non-interactive migration
-  --version                      Show version
-  --help                         Show help
-`;
-
-function parseScope(value: string | undefined): MigrationScope | undefined {
-  if (value === undefined) return undefined;
-  if (value === "workspace" || value === "user" || value === "both")
-    return value;
-  throw new Error(`Invalid --scope value: ${value}`);
+function showLogo(runtime: MigrationRuntime): void {
+  const width = Math.max(
+    runtime.terminal.output.columns ?? 0,
+    ...LOGO_LINES.map(line => line.length + 8),
+  );
+  const edge = ` ${AURORA_SPARKS} `;
+  const border = "─".repeat(Math.max(0, width - edge.length * 2 - 2));
+  runtime.terminal.output.write("\n");
+  runtime.terminal.output.write(
+    `\x1b[48;5;${AURORA_BACKGROUND}m\x1b[38;5;${AURORA_BORDER}m╭${edge}${border}${edge}╮${RESET}\n`,
+  );
+  for (const [index, line] of LOGO_LINES.entries()) {
+    const third = Math.ceil(line.length / AURORA_COLORS.length);
+    const colored = AURORA_COLORS.map((color, colorIndex) => {
+      const start = colorIndex * third;
+      return `\x1b[38;5;${color}m${line.slice(start, start + third)}`;
+    }).join("");
+    const firework = index === 0 || index === LOGO_LINES.length - 2 ? "✦" : "·";
+    const leftPadding = `\x1b[38;5;${AURORA_BORDER}m│\x1b[38;5;81m ${firework}`;
+    const rightPadding = " ".repeat(Math.max(0, width - (4 + line.length)));
+    runtime.terminal.output.write(
+      `\x1b[48;5;${AURORA_BACKGROUND}m${leftPadding}${colored}${rightPadding}\x1b[38;5;${AURORA_BORDER}m│${RESET}\n`,
+    );
+  }
+  runtime.terminal.output.write(
+    `\x1b[48;5;${AURORA_BACKGROUND}m\x1b[38;5;${AURORA_BORDER}m╰${edge}${border}${edge}╯${RESET}\n`,
+  );
+  runtime.terminal.output.write("\n");
 }
+
+const HELP = `
+${BOLD}Usage:${RESET} cursor-to-kiro [options]
+
+${BOLD}Options:${RESET}
+  --root <path>   Scan this project instead of the detected project root
+  --dry-run       Scan and preview without writing files
+  -y, --yes       Confirm migration without an interactive prompt
+  --version       Show version number
+  --help          Show this help message
+
+${BOLD}Examples:${RESET}
+  ${DIM}$${RESET} ${TEXT}cursor-to-kiro${RESET}
+  ${DIM}$${RESET} ${TEXT}cursor-to-kiro --dry-run${RESET}
+  ${DIM}$${RESET} ${TEXT}cursor-to-kiro --root ./my-project --yes${RESET}
+`;
 
 export async function runCli(
   argv: string[],
@@ -46,7 +82,6 @@ export async function runCli(
       args: argv,
       options: {
         root: { type: "string" },
-        scope: { type: "string" },
         "dry-run": { type: "boolean" },
         yes: { type: "boolean", short: "y" },
         version: { type: "boolean" },
@@ -68,30 +103,42 @@ export async function runCli(
       runtime.cwd,
       parsed.values.root,
     );
-    io.log("Cursor → Kiro Migration");
-    io.log(`Resolved root: ${resolved.root}`);
-    if (resolved.warning) io.log(`Warning: ${resolved.warning}`);
+    const interactive = isInteractive(runtime);
+    if (interactive) {
+      showLogo(runtime);
+      p.intro(pc.bgCyan(pc.black(" cursor-to-kiro ")), {
+        input: runtime.terminal.input,
+        output: runtime.terminal.output,
+      });
+    } else {
+      io.log(`${BOLD}Cursor → Kiro${RESET}`);
+      io.log(`${DIM}Project: ${resolved.root}${RESET}`);
+      if (resolved.warning) io.log(`${DIM}${resolved.warning}${RESET}`);
+    }
 
-    let scope = parseScope(parsed.values.scope);
-    if (!scope)
-      scope = isInteractive(runtime)
-        ? await promptScope(runtime.terminal)
-        : "workspace";
-    if (!scope) return 130;
-
+    const spinner = interactive
+      ? p.spinner({
+          input: runtime.terminal.input,
+          output: runtime.terminal.output,
+        })
+      : undefined;
+    spinner?.start("Scanning project…");
     const scanned = await scan({
       root: resolved.root,
-      scope,
-      home: runtime.home,
-      kiroHome: runtime.kiroHome,
     });
+    spinner?.stop(`Found ${scanned.candidates.length} artifacts`);
     for (const notice of scanned.notices) io.log(`Info: ${notice}`);
     let plan = await createMigrationPlan(scanned.candidates);
-    io.log(renderTree(plan.analyses));
 
-    if (isInteractive(runtime)) {
+    if (interactive && !parsed.values.yes) {
       const selected = await selectArtifacts(runtime.terminal, plan.analyses);
-      if (!selected) return 130;
+      if (!selected) {
+        p.cancel("Migration cancelled", {
+          input: runtime.terminal.input,
+          output: runtime.terminal.output,
+        });
+        return 130;
+      }
       const selectedIds = new Set(
         selected
           .filter(analysis => analysis.selected)
@@ -99,21 +146,39 @@ export async function runCli(
       );
       plan = await createMigrationPlan(scanned.candidates, selectedIds);
     }
-    io.log(renderPlan(plan));
+    if (interactive) {
+      p.note(renderPlan(plan), "Migration plan", {
+        input: runtime.terminal.input,
+        output: runtime.terminal.output,
+      });
+    } else io.log(renderPlan(plan));
     if (parsed.values["dry-run"]) {
-      io.log("Dry run complete. No files were written.");
-      io.log(renderTerminalSummary(plan));
+      if (interactive) {
+        p.outro(pc.green("Dry run complete. No files were written."), {
+          input: runtime.terminal.input,
+          output: runtime.terminal.output,
+        });
+      } else {
+        io.log("Dry run complete. No files were written.");
+        io.log(renderTerminalSummary(plan));
+      }
       return 0;
     }
 
     if (!parsed.values.yes) {
-      if (!isInteractive(runtime)) {
+      if (!interactive) {
         io.error(
           "Non-interactive migration requires --yes. No files were written.",
         );
         return 130;
       }
-      if (!(await confirmMigration(runtime.terminal))) return 130;
+      if (!(await confirmMigration(runtime.terminal))) {
+        p.cancel("Migration cancelled", {
+          input: runtime.terminal.input,
+          output: runtime.terminal.output,
+        });
+        return 130;
+      }
     }
 
     const prepared = await prepareMigration({
@@ -134,11 +199,17 @@ export async function runCli(
       prepared.value.sourceSnapshot,
       runtime.temporaryDirectory,
     );
-    io.log(renderTerminalSummary(plan));
-    io.log(
-      `Created: ${result.created.length}; already migrated: ${result.alreadyPresent.length}.`,
-    );
-    io.log("Report: .cursor-to-kiro-report.md");
+    const completion = `Created: ${result.created.length}; already migrated: ${result.alreadyPresent.length}.`;
+    if (interactive) {
+      p.outro(pc.green(`Migration complete. ${completion}`), {
+        input: runtime.terminal.input,
+        output: runtime.terminal.output,
+      });
+    } else {
+      io.log(renderTerminalSummary(plan));
+      io.log(completion);
+      io.log("Report: .cursor-to-kiro-report.md");
+    }
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

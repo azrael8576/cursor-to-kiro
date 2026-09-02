@@ -7,8 +7,6 @@ export interface MigrationTerminal {
 
 export interface MigrationRuntime {
   cwd: string;
-  home: string;
-  kiroHome: string;
   terminal: MigrationTerminal;
   temporaryDirectory: (prefix: string) => Promise<string>;
 }

@@ -22,9 +22,6 @@ describe("golden and idempotency migration", () => {
       (
         await scan({
           root,
-          scope: "workspace",
-          home: root,
-          kiroHome: path.join(root, ".kiro"),
         })
       ).candidates,
     );
@@ -35,7 +32,7 @@ describe("golden and idempotency migration", () => {
       snapshot,
       tempDirectory,
     );
-    expect(first.created).toHaveLength(3);
+    expect(first.created).toHaveLength(4);
     const actual = await treeSnapshot(path.join(root, ".kiro"));
     const expected = await treeSnapshot(
       path.join(FIXTURES, "golden", "expected", ".kiro"),
@@ -46,9 +43,6 @@ describe("golden and idempotency migration", () => {
       (
         await scan({
           root,
-          scope: "workspace",
-          home: root,
-          kiroHome: path.join(root, ".kiro"),
         })
       ).candidates,
     );
@@ -58,10 +52,12 @@ describe("golden and idempotency migration", () => {
       tempDirectory,
     );
     expect(second.created).toHaveLength(0);
-    expect(second.alreadyPresent).toHaveLength(3);
+    expect(second.alreadyPresent).toHaveLength(4);
 
     const afterSources = (await treeSnapshot(root)).filter(
-      file => !file.identity.startsWith(".kiro/"),
+      file =>
+        !file.identity.startsWith(".kiro/") &&
+        !file.identity.startsWith(".agents/docs/rules/"),
     );
     expect(afterSources).toEqual(beforeSources);
   });

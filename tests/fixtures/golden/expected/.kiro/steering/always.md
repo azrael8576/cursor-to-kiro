@@ -1,5 +1,4 @@
 ---
 inclusion: always
 ---
-
-Use strict TypeScript.
+#[[file:.agents/docs/rules/always.md]]

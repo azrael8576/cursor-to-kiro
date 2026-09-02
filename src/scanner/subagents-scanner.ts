@@ -62,14 +62,6 @@ export function scanWorkspaceSubagents(
   return scanRoot(
     path.join(root, ".cursor", "agents"),
     ".cursor/agents",
-    "workspace",
-  );
-}
-
-export function scanUserSubagents(home: string): Promise<SubagentCandidate[]> {
-  return scanRoot(
-    path.join(home, ".cursor", "agents"),
-    "~/.cursor/agents",
-    "user",
+    "project",
   );
 }
