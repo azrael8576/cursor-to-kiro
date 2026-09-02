@@ -3,6 +3,8 @@ export type ArtifactKind = "rule" | "skill" | "subagent" | "hook" | "agents-md";
 export type MigrationScope = "workspace" | "user" | "both";
 export type SourceScope = "workspace" | "user";
 
+export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
+
 export interface SourceFile {
   absolutePath: string;
   identity: string;

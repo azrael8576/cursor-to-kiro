@@ -1,4 +1,10 @@
-import type { Analysis, Candidate, MigrationPlan } from "../domain.js";
+import type {
+  Analysis,
+  Candidate,
+  ManifestEntry,
+  MigrationPlan,
+  Result,
+} from "../domain.js";
 import { analyzeCandidate } from "../compatibility/index.js";
 import { convertAnalysis } from "../converters/index.js";
 import {
@@ -6,6 +12,28 @@ import {
   detectManifestCollisions,
   type DestinationIssue,
 } from "../validator/destination-validator.js";
+import {
+  snapshotSelectedSources,
+  type IntegritySnapshot,
+} from "../validator/source-integrity.js";
+import { reportEntry } from "../report/migration-report.js";
+
+export interface PreparedMigration {
+  plan: MigrationPlan;
+  entries: ManifestEntry[];
+  sourceSnapshot: IntegritySnapshot;
+}
+
+export interface PrepareMigrationOptions {
+  candidates: Candidate[];
+  root: string;
+  selectedIds?: ReadonlySet<string>;
+}
+
+export type PlanningError = {
+  kind: "destination-conflict";
+  reasons: string[];
+};
 
 function applyIssues(
   analyses: Analysis[],
@@ -69,5 +97,33 @@ export async function createMigrationPlan(
     destinationConflicts: analyses.filter(analysis =>
       badIds.has(analysis.candidate.id),
     ),
+  };
+}
+
+export async function prepareMigration(
+  options: PrepareMigrationOptions,
+): Promise<Result<PreparedMigration, PlanningError>> {
+  const plan = await createMigrationPlan(
+    options.candidates,
+    options.selectedIds,
+  );
+  const output = reportEntry(options.root, plan);
+  const issues = await detectExistingDestinationIssues([output]);
+  if (issues.length > 0) {
+    return {
+      ok: false,
+      error: {
+        kind: "destination-conflict",
+        reasons: issues.map(issue => issue.reason),
+      },
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      plan,
+      entries: [...plan.manifest, output],
+      sourceSnapshot: snapshotSelectedSources(plan.analyses),
+    },
   };
 }

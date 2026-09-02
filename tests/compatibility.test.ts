@@ -18,6 +18,7 @@ describe("strict compatibility analysis", () => {
       root,
       scope: "workspace",
       home: await tempDirectory("empty-home-"),
+      kiroHome: path.join(root, ".kiro"),
     });
     const plan = await createMigrationPlan(scanned.candidates);
     expect(
@@ -58,7 +59,14 @@ describe("strict compatibility analysis", () => {
       "---\nname: scoped\ndescription: Scoped.\npaths: src/**\n---\nScoped.\n",
     );
     const plan = await createMigrationPlan(
-      (await scan({ root, scope: "workspace" })).candidates,
+      (
+        await scan({
+          root,
+          scope: "workspace",
+          home: root,
+          kiroHome: path.join(root, ".kiro"),
+        })
+      ).candidates,
     );
     const skills = plan.analyses.filter(
       item => item.candidate.kind === "skill",
@@ -84,7 +92,14 @@ describe("strict compatibility analysis", () => {
       "---\nname: demo\ndescription: Agents copy.\n---\nTwo.\n",
     );
     const plan = await createMigrationPlan(
-      (await scan({ root, scope: "workspace" })).candidates,
+      (
+        await scan({
+          root,
+          scope: "workspace",
+          home: root,
+          kiroHome: path.join(root, ".kiro"),
+        })
+      ).candidates,
     );
     expect(plan.manifest).toHaveLength(0);
     expect(plan.destinationConflicts).toHaveLength(2);

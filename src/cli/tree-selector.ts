@@ -1,29 +1,32 @@
 import readline from "node:readline";
 import type { Analysis } from "../domain.js";
+import type { MigrationTerminal } from "../runtime.js";
 import { renderTree } from "./renderer.js";
 
 export async function selectArtifacts(
+  terminal: MigrationTerminal,
   initial: Analysis[],
 ): Promise<Analysis[] | undefined> {
+  const { input, output } = terminal;
   if (initial.length === 0) return initial;
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return initial;
-  readline.emitKeypressEvents(process.stdin);
-  const previousRaw = process.stdin.isRaw;
-  process.stdin.setRawMode(true);
-  process.stdin.resume();
+  if (!input.isTTY || !output.isTTY) return initial;
+  readline.emitKeypressEvents(input);
+  const previousRaw = input.isRaw;
+  input.setRawMode(true);
+  input.resume();
   let cursor = 0;
   let analyses = initial.map(analysis => ({ ...analysis }));
   const draw = (): void => {
-    process.stdout.write(
+    output.write(
       `\x1b[2J\x1b[H${renderTree(analyses, cursor)}\n\n↑ ↓ move   Space select   A select all migratable   Enter continue   Esc cancel\n`,
     );
   };
   draw();
   try {
     return await new Promise<Analysis[] | undefined>(resolve => {
-      const onKey = (input: string, key: readline.Key): void => {
+      const onKey = (keyInput: string, key: readline.Key): void => {
         if ((key.ctrl && key.name === "c") || key.name === "escape") {
-          process.stdin.off("keypress", onKey);
+          input.off("keypress", onKey);
           resolve(undefined);
           return;
         }
@@ -38,23 +41,23 @@ export async function selectArtifacts(
           ) {
             analyses[cursor] = { ...current, selected: !current.selected };
           }
-        } else if (input.toLowerCase() === "a") {
+        } else if (keyInput.toLowerCase() === "a") {
           analyses = analyses.map(analysis =>
             analysis.status === "EXACT" || analysis.status === "TRANSFORM"
               ? { ...analysis, selected: true }
               : analysis,
           );
         } else if (key.name === "return") {
-          process.stdin.off("keypress", onKey);
+          input.off("keypress", onKey);
           resolve(analyses);
           return;
         }
         draw();
       };
-      process.stdin.on("keypress", onKey);
+      input.on("keypress", onKey);
     });
   } finally {
-    process.stdin.setRawMode(previousRaw ?? false);
-    process.stdin.pause();
+    input.setRawMode(previousRaw ?? false);
+    input.pause();
   }
 }

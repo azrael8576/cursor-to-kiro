@@ -8,6 +8,7 @@ import {
   cleanupTemporary,
   FIXTURES,
   fixtureWorkspace,
+  tempDirectory,
   treeSnapshot,
 } from "./helpers.js";
 
@@ -18,11 +19,22 @@ describe("golden and idempotency migration", () => {
     const root = await fixtureWorkspace("golden/input");
     const beforeSources = await treeSnapshot(root);
     const plan = await createMigrationPlan(
-      (await scan({ root, scope: "workspace" })).candidates,
+      (
+        await scan({
+          root,
+          scope: "workspace",
+          home: root,
+          kiroHome: path.join(root, ".kiro"),
+        })
+      ).candidates,
     );
     const snapshot = snapshotSelectedSources(plan.analyses);
 
-    const first = await commitTransaction(plan.manifest, snapshot);
+    const first = await commitTransaction(
+      plan.manifest,
+      snapshot,
+      tempDirectory,
+    );
     expect(first.created).toHaveLength(2);
     const actual = await treeSnapshot(path.join(root, ".kiro"));
     const expected = await treeSnapshot(
@@ -31,11 +43,19 @@ describe("golden and idempotency migration", () => {
     expect(actual).toEqual(expected);
 
     const secondPlan = await createMigrationPlan(
-      (await scan({ root, scope: "workspace" })).candidates,
+      (
+        await scan({
+          root,
+          scope: "workspace",
+          home: root,
+          kiroHome: path.join(root, ".kiro"),
+        })
+      ).candidates,
     );
     const second = await commitTransaction(
       secondPlan.manifest,
       snapshotSelectedSources(secondPlan.analyses),
+      tempDirectory,
     );
     expect(second.created).toHaveLength(0);
     expect(second.alreadyPresent).toHaveLength(2);

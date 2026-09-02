@@ -1,8 +1,12 @@
 import { keyMenu } from "./key-menu.js";
+import type { MigrationTerminal } from "../runtime.js";
 
-export async function confirmMigration(): Promise<boolean> {
+export async function confirmMigration(
+  terminal: MigrationTerminal,
+): Promise<boolean> {
   const options = ["Migrate", "Cancel"];
   const result = await keyMenu(
+    terminal,
     index =>
       [
         "Confirm migration",

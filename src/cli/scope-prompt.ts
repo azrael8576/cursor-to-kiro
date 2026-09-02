@@ -1,4 +1,5 @@
 import type { MigrationScope } from "../domain.js";
+import type { MigrationTerminal } from "../runtime.js";
 import { keyMenu } from "./key-menu.js";
 
 const OPTIONS: Array<{ label: string; value: MigrationScope }> = [
@@ -7,8 +8,11 @@ const OPTIONS: Array<{ label: string; value: MigrationScope }> = [
   { label: "Both", value: "both" },
 ];
 
-export async function promptScope(): Promise<MigrationScope | undefined> {
+export async function promptScope(
+  terminal: MigrationTerminal,
+): Promise<MigrationScope | undefined> {
   const result = await keyMenu(
+    terminal,
     index =>
       [
         "Cursor → Kiro Migration",

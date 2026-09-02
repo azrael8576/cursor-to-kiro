@@ -30,7 +30,7 @@ describe("transaction rollback", () => {
       },
     ];
     await expect(
-      commitTransaction(entries, { files: new Map() }),
+      commitTransaction(entries, { files: new Map() }, tempDirectory),
     ).rejects.toMatchObject({ rollbackPerformed: true });
     const createdEntry = entries[0];
     if (!createdEntry)

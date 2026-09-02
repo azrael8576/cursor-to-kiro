@@ -1,5 +1,3 @@
-import os from "node:os";
-import path from "node:path";
 import type { MigrationScope, ScanResult } from "../domain.js";
 import { sortByIdentity } from "../util/paths.js";
 import { scanAgentsMd } from "./agents-md-scanner.js";
@@ -14,17 +12,11 @@ import {
 export interface ScanOptions {
   root: string;
   scope: MigrationScope;
-  home?: string;
-  kiroHome?: string;
+  home: string;
+  kiroHome: string;
 }
 
 export async function scan(options: ScanOptions): Promise<ScanResult> {
-  const home = options.home ?? os.homedir();
-  const kiroHome =
-    options.kiroHome ??
-    (process.env.KIRO_HOME
-      ? path.resolve(process.env.KIRO_HOME)
-      : path.join(home, ".kiro"));
   const groups = [];
   const notices: string[] = [];
   if (options.scope === "workspace" || options.scope === "both") {
@@ -38,10 +30,10 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   }
   if (options.scope === "user" || options.scope === "both") {
     groups.push(
-      scanUserRules(home),
-      scanUserSkills(home, kiroHome),
-      scanUserSubagents(home),
-      scanUserHooks(home),
+      scanUserRules(options.home),
+      scanUserSkills(options.home, options.kiroHome),
+      scanUserSubagents(options.home),
+      scanUserHooks(options.home),
     );
     notices.push(
       "Cursor Settings User Rules and Team Rules: Not discoverable from filesystem.",

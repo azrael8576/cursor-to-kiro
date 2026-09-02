@@ -1,12 +1,13 @@
 import { parseArgs } from "node:util";
 import type { MigrationScope } from "../domain.js";
-import { createMigrationPlan } from "../planner/migration-plan.js";
-import { reportEntry } from "../report/migration-report.js";
+import {
+  createMigrationPlan,
+  prepareMigration,
+} from "../planner/migration-plan.js";
+import { isInteractive, type MigrationRuntime } from "../runtime.js";
 import { scan } from "../scanner/index.js";
 import { resolveWorkspaceRoot } from "../scanner/workspace-root.js";
 import { commitTransaction } from "../transaction/transaction.js";
-import { detectExistingDestinationIssues } from "../validator/destination-validator.js";
-import { snapshotSelectedSources } from "../validator/source-integrity.js";
 import { confirmMigration } from "./confirmation.js";
 import { renderPlan, renderTerminalSummary, renderTree } from "./renderer.js";
 import { promptScope } from "./scope-prompt.js";
@@ -28,8 +29,6 @@ Options:
   --help                         Show help
 `;
 
-export class SafetyError extends Error {}
-
 function parseScope(value: string | undefined): MigrationScope | undefined {
   if (value === undefined) return undefined;
   if (value === "workspace" || value === "user" || value === "both")
@@ -39,7 +38,8 @@ function parseScope(value: string | undefined): MigrationScope | undefined {
 
 export async function runCli(
   argv: string[],
-  io: Pick<Console, "log" | "error"> = console,
+  runtime: MigrationRuntime,
+  io: Pick<Console, "log" | "error">,
 ): Promise<number> {
   try {
     const parsed = parseArgs({
@@ -65,7 +65,7 @@ export async function runCli(
     }
 
     const resolved = await resolveWorkspaceRoot(
-      process.cwd(),
+      runtime.cwd,
       parsed.values.root,
     );
     io.log("Cursor → Kiro Migration");
@@ -74,19 +74,23 @@ export async function runCli(
 
     let scope = parseScope(parsed.values.scope);
     if (!scope)
-      scope =
-        process.stdin.isTTY && process.stdout.isTTY
-          ? await promptScope()
-          : "workspace";
+      scope = isInteractive(runtime)
+        ? await promptScope(runtime.terminal)
+        : "workspace";
     if (!scope) return 130;
 
-    const scanned = await scan({ root: resolved.root, scope });
+    const scanned = await scan({
+      root: resolved.root,
+      scope,
+      home: runtime.home,
+      kiroHome: runtime.kiroHome,
+    });
     for (const notice of scanned.notices) io.log(`Info: ${notice}`);
     let plan = await createMigrationPlan(scanned.candidates);
     io.log(renderTree(plan.analyses));
 
-    if (process.stdin.isTTY && process.stdout.isTTY) {
-      const selected = await selectArtifacts(plan.analyses);
+    if (isInteractive(runtime)) {
+      const selected = await selectArtifacts(runtime.terminal, plan.analyses);
       if (!selected) return 130;
       const selectedIds = new Set(
         selected
@@ -103,23 +107,32 @@ export async function runCli(
     }
 
     if (!parsed.values.yes) {
-      if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      if (!isInteractive(runtime)) {
         io.error(
           "Non-interactive migration requires --yes. No files were written.",
         );
         return 130;
       }
-      if (!(await confirmMigration())) return 130;
+      if (!(await confirmMigration(runtime.terminal))) return 130;
     }
 
-    const output = reportEntry(resolved.root, plan);
-    const reportIssues = await detectExistingDestinationIssues([output]);
-    if (reportIssues.length > 0)
-      throw new SafetyError(reportIssues.map(issue => issue.reason).join(" "));
-    const snapshot = snapshotSelectedSources(plan.analyses);
+    const prepared = await prepareMigration({
+      candidates: scanned.candidates,
+      root: resolved.root,
+      selectedIds: new Set(
+        plan.analyses
+          .filter(analysis => analysis.selected)
+          .map(analysis => analysis.candidate.id),
+      ),
+    });
+    if (!prepared.ok) {
+      io.error(`cursor-to-kiro: ${prepared.error.reasons.join(" ")}`);
+      return 2;
+    }
     const result = await commitTransaction(
-      [...plan.manifest, output],
-      snapshot,
+      prepared.value.entries,
+      prepared.value.sourceSnapshot,
+      runtime.temporaryDirectory,
     );
     io.log(renderTerminalSummary(plan));
     io.log(
@@ -130,9 +143,6 @@ export async function runCli(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     io.error(`cursor-to-kiro: ${message}`);
-    return error instanceof SafetyError ||
-      (error as { rollbackPerformed?: boolean }).rollbackPerformed
-      ? 2
-      : 1;
+    return (error as { rollbackPerformed?: boolean }).rollbackPerformed ? 2 : 1;
   }
 }

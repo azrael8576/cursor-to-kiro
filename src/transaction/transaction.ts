@@ -3,14 +3,12 @@ import {
   copyFile,
   lstat,
   mkdir,
-  mkdtemp,
   readFile,
   rm,
   rmdir,
   unlink,
   writeFile,
 } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import type { CommitResult, ManifestEntry } from "../domain.js";
 import type { IntegritySnapshot } from "../validator/source-integrity.js";
@@ -56,9 +54,10 @@ async function ensureSafeDirectory(
 export async function commitTransaction(
   entries: ManifestEntry[],
   sourceSnapshot: IntegritySnapshot,
+  temporaryDirectory: (prefix: string) => Promise<string>,
 ): Promise<CommitResult> {
   await verifySourceIntegrity(sourceSnapshot);
-  const stageRoot = await mkdtemp(path.join(os.tmpdir(), "cursor-to-kiro-"));
+  const stageRoot = await temporaryDirectory("cursor-to-kiro-");
   const staged = new Map<string, string>();
   const created: string[] = [];
   const createdDirectories: string[] = [];
