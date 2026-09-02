@@ -30,7 +30,7 @@ describe("migration runtime interface", () => {
     };
 
     expect(await runCli(["--yes"], runtime(root), io)).toBe(0);
-    expect(output.join("\n")).toContain("Created: 5; already migrated: 0.");
+    expect(output.join("\n")).toContain("Created: 9; already migrated: 0.");
   });
 
   it("keeps report destination validation inside migration planning", async () => {

@@ -8,6 +8,7 @@ export interface SourceFile {
   absolutePath: string;
   identity: string;
   bytes: Uint8Array;
+  mode?: number;
 }
 
 export interface ParsedMarkdown {
@@ -97,6 +98,8 @@ export interface Analysis {
   kiroGap?: string;
   fields?: string[];
   selected: boolean;
+  disposition?: "active" | "draft";
+  changes?: string[];
 }
 
 export interface ManifestEntry {
@@ -105,6 +108,8 @@ export interface ManifestEntry {
   bytes: Uint8Array;
   artifactId: string;
   semanticKey: string;
+  sourceAbsolutePath?: string;
+  mode?: number;
 }
 
 export interface MigrationPlan {

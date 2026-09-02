@@ -1,5 +1,7 @@
 # Cursor → Kiro Strict Migration：官方文件研究
 
+> **2026-09-02：使用者已要求放寬為近似等價遷移。** 本文下方保留舊 strict 政策與研究紀錄；其中「所有 subagent／hook 都不可遷移」不代表目標產品缺少能力。最新查證、欄位與引用轉換提案及實作前測試清單見 [近似等價遷移審閱](relaxed-migration-review.md)，Hooks 詳見 [adapter 查證](hooks-adapter-research.md)。新策略已依使用者 review 實作；啟用範圍與草稿限制見最新相容性表。
+
 > ## 2026-09-02 revalidation — Project Rules → Steering correction
 >
 > This section supersedes the earlier conservative conclusion for ordinary

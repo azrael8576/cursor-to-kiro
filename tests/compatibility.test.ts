@@ -11,7 +11,7 @@ import {
 
 afterEach(cleanupTemporary);
 
-describe("strict compatibility analysis", () => {
+describe("compatibility analysis", () => {
   it("transforms a file-matched Rule and its live file references", async () => {
     const root = await tempDirectory();
     await writeText(root, "lib/repo/api.dart", "class Api {}\n");
@@ -173,7 +173,7 @@ describe("strict compatibility analysis", () => {
     ]);
   });
 
-  it("migrates only the proven Skill subset in the golden fixture", async () => {
+  it("converts roles, rules, skills and a disabled hook draft in the golden fixture", async () => {
     const root = await fixtureWorkspace("golden/input");
     const scanned = await scan({
       root,
@@ -183,7 +183,7 @@ describe("strict compatibility analysis", () => {
       plan.analyses
         .filter(item => item.selected)
         .map(item => item.candidate.kind),
-    ).toEqual(["rule", "skill"]);
+    ).toEqual(["subagent", "hook", "rule", "skill"]);
     expect(
       plan.analyses.some(item => item.candidate.identity.endsWith("AGENTS.md")),
     ).toBe(false);
@@ -192,13 +192,13 @@ describe("strict compatibility analysis", () => {
     ).toBe("TRANSFORM");
     expect(
       plan.analyses.find(item => item.candidate.kind === "subagent")?.status,
-    ).toBe("CONFLICT");
+    ).toBe("TRANSFORM");
     expect(
-      plan.analyses.find(item => item.candidate.kind === "hook")?.status,
-    ).toBe("CONFLICT");
+      plan.analyses.find(item => item.candidate.kind === "hook")?.disposition,
+    ).toBe("draft");
   });
 
-  it("rejects nested and Cursor-scoped Skills", async () => {
+  it("converts nested and Cursor-scoped Skills into scoped steering", async () => {
     const root = await tempDirectory();
     await writeText(
       root,
@@ -221,11 +221,10 @@ describe("strict compatibility analysis", () => {
       item => item.candidate.kind === "skill",
     );
     expect(skills).toHaveLength(2);
-    expect(skills.every(item => item.status === "CONFLICT")).toBe(true);
-    expect(skills.map(item => item.reason).join(" ")).toContain(
-      "nested project Skill",
-    );
-    expect(skills.map(item => item.reason).join(" ")).toContain("paths");
+    expect(skills.every(item => item.status === "TRANSFORM")).toBe(true);
+    const outputs = plan.manifest.map(item => item.displayPath);
+    expect(outputs).toContain(".kiro/steering/apps--web--deploy.md");
+    expect(outputs).toContain(".kiro/steering/scoped.md");
   });
 
   it("turns multiple different sources targeting one Skill into conflicts", async () => {

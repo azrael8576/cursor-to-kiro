@@ -35,6 +35,7 @@ export function detectManifestCollisions(entries: ManifestEntry[]): {
     const identical = group.every(
       entry =>
         entry.semanticKey === first.semanticKey &&
+        entry.mode === first.mode &&
         bytesEqual(entry.bytes, first.bytes),
     );
     if (identical) {
@@ -152,10 +153,13 @@ export async function detectExistingDestinationIssues(
       continue;
     }
     const existing = await readFile(entry.absolutePath);
-    if (!bytesEqual(existing, entry.bytes)) {
+    if (
+      !bytesEqual(existing, entry.bytes) ||
+      (entry.mode !== undefined && (stat.mode & 0o777) !== entry.mode)
+    ) {
       issues.push({
         artifactIds: [entry.artifactId],
-        reason: `Destination exists with different content: ${entry.displayPath}.`,
+        reason: `Destination exists with different content or permissions: ${entry.displayPath}.`,
       });
     }
   }

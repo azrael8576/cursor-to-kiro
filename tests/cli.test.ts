@@ -81,6 +81,6 @@ describe("CLI operational contract", () => {
     ).toContain("Cursor → Kiro Migration Report");
     output.length = 0;
     expect(await runCli(args, runtime(root), io)).toBe(0);
-    expect(output.join("\n")).toContain("Created: 0; already migrated: 5.");
+    expect(output.join("\n")).toContain("Created: 0; already migrated: 9.");
   });
 });

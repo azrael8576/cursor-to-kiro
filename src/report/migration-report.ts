@@ -46,7 +46,13 @@ export function renderMigrationReport(plan: MigrationPlan): string {
       } else if (analysis.status === "CONFLICT") {
         lines.push("- Result: **NOT MIGRATED**");
       }
+      if (analysis.selected && analysis.disposition === "draft")
+        lines.push(
+          "- Result: **DRAFT — not activated; resolve the listed differences before enabling**",
+        );
       lines.push(`- Summary: ${analysis.summary}`);
+      for (const change of analysis.changes ?? [])
+        lines.push(`- Conversion: ${change}`);
       if (analysis.reason) lines.push(`- Reason: ${analysis.reason}`);
       if (analysis.cursorBehavior)
         lines.push(`- Cursor behavior: ${analysis.cursorBehavior}`);
@@ -57,7 +63,12 @@ export function renderMigrationReport(plan: MigrationPlan): string {
       lines.push("");
     }
   }
-  const migrated = plan.analyses.filter(analysis => analysis.selected).length;
+  const migrated = plan.analyses.filter(
+    analysis => analysis.selected && analysis.disposition !== "draft",
+  ).length;
+  const drafts = plan.analyses.filter(
+    analysis => analysis.selected && analysis.disposition === "draft",
+  ).length;
   const native = plan.analyses.filter(
     analysis => analysis.status === "NATIVE",
   ).length;
@@ -68,6 +79,7 @@ export function renderMigrationReport(plan: MigrationPlan): string {
     "## Summary",
     "",
     `- Migrated: ${migrated}`,
+    `- Drafts (not activated): ${drafts}`,
     `- Native: ${native}`,
     `- Not migrated: ${conflicts}`,
     "- Errors: 0",

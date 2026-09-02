@@ -2,14 +2,9 @@
 
 `cursor-to-kiro` 是一個用來協助團隊將 Cursor 設定遷移到 Kiro 的互動式 CLI。
 
-它採取 **Strict Migration** 原則：
+它會轉換有明確對應的設定，也接受已揭露差異的近似等價轉換。每筆結果會列出欄位與引用的改寫；未能保留的執行行為會產生**未啟用草稿**，輸入錯誤或真正無對應的事件則逐項回報。
 
-> 只有在 Cursor 與 Kiro 的設定語義經官方規格證明相容時才會自動遷移。
-> 如果發現欄位、行為或生命週期存在不一致，該項目不會被強制轉換；CLI 會列出原因，交由使用者自行處理。
-
-CLI 不會用 LLM 改寫設定，也不會修改任何 Cursor 原始檔案。相容契約以 [compatibility matrix](docs/compatibility-matrix.md) 與 [official research](docs/official-research.md) 為準（最近查證：2026-09-02）。
-
-目前會掃描並分析 Rules、Skills、Subagents、Hooks。能安全轉換的自動完成；不能安全轉換的清楚標示原因。
+CLI 不使用 LLM 改寫設定，不修改 Cursor 原始檔案。官方查證與限制見 [遷移規格](docs/relaxed-migration-review.md)、[Hooks adapter 研究](docs/hooks-adapter-research.md) 與 [相容性表](docs/compatibility-matrix.md)（2026-09-02）。目標格式為 Kiro IDE 1.x／CLI 3.x；本專案測試涵蓋產物與 adapter，但尚未在 Kiro 實機驗證。
 
 ---
 
@@ -86,45 +81,51 @@ cursor-to-kiro --help
 
 ## Skills
 
-只有同時滿足以下條件才會遷移：
+標準套件搬到 `.kiro/skills/<name>/`，保留資源結構與檔案權限。分類目錄可扁平化；同名或既有檔案衝突不覆寫。
 
-* 位於 project root Skill 位置（非巢狀 subtree Skill）
-* frontmatter 僅含 Agent Skills 共用欄位（如 `name`、`description`）
-* 沒有 Cursor-only 欄位（如 `paths`、`globs`、`disable-model-invocation`）
-
-遷移結果為 byte-preserving 目錄複製：
-
-```text
-.cursor/skills/<name>/...
-    ↓
-.kiro/skills/<name>/...
-```
-
----
-
-## Subagents 相容性
-
-| Cursor 設定 | 處理 |
+| Cursor 設定 | 轉換結果 |
 | --- | --- |
-| `name` / `description` / body | 不足以單獨證明可遷移 |
-| `model` / `readonly` / `is_background` | ❌ 無嚴格等價 |
-| 即使沒有上述執行欄位 | ❌ 仍不遷移 |
+| 標準 Agent Skills 欄位 | 保留 frontmatter 與 bundle |
+| `icon`、`color` | 保存在 `metadata.cursor.icon`／`metadata.cursor.color`，不保證 badge 外觀 |
+| `disable-model-invocation: false` | 一般 skill |
+| `disable-model-invocation: true` | `inclusion: manual` steering，bundle 放在 `.agents/docs/skills/` |
+| `paths`／fallback `globs` | `inclusion: fileMatch` + `fileMatchPattern`，明列載入時機差異 |
+| subtree skill | 保留 subtree 條件；無法證明 patterns 交集時產生草稿 |
+| manual + scope、`allowed-tools`、未知欄位 | 非自動載入的草稿，保留來源欄位 |
 
-Cursor 與 Kiro 在預設 model、tool、resource、permission inheritance 上不同。只要無法證明完整 runtime 等價，整個 Subagent 都不會自動遷移。
+標準 skill 的相對 Markdown 連結會依搬移位置重算，含跨套件連結。取消選取或目標衝突時，引用保留到來源檔。程式碼範例、email、MCP 名稱和外部網址不盲目替換。檔案名稱與 description 長度等標準限制會先驗證。
 
----
+## Subagents
 
-## Hooks 相容性
+一般角色從 `.cursor/agents/<name>.md` 轉成 `.kiro/agents/<name>.json`，保留 name、description、正文；缺 name 時由檔名推導。
 
-名稱相似不代表可轉換：
+- `model: inherit`／未指定：使用 Kiro default，報告不再保證 parent-model inheritance。
+- `readonly: true`：只提供 `read`，關閉 MCP；比 Cursor 更嚴格，不提供唯讀 shell。
+- 一般 agent：明確提供 read/write/shell 與 Kiro skill resources；不自動批准工具，不繼承 Cursor 的 MCP／steering 設定。
+- 指定 model、背景排程或未知欄位：產生 `.agents/docs/migration-drafts/agents/` 下的角色草稿及來源，避免錯誤啟用。
 
-| Cursor Hook | 近似 Kiro 名稱 | 處理 |
-| --- | --- | --- |
-| `sessionStart` | `SessionStart` | ❌ 協議不等價 |
-| `preToolUse` | `PreToolUse` | ❌ 協議不等價 |
-| `postToolUse` | `PostToolUse` | ❌ 協議不等價 |
-| `beforeSubmitPrompt` | `UserPromptSubmit` | ❌ 協議不等價 |
-| `stop` | `Stop` | ❌ 協議不等價 |
-| `sessionEnd` / `beforeShellExecution` / `afterShellExecution` / `beforeMCPExecution` / `afterMCPExecution` / `subagentStart` / `subagentStop` / `preCompact` 等 | 無 1:1 生命週期契約 | ❌ 不遷移 |
+來源 live file mention 轉成 prompt 中的路徑與 agent `resources`：一般檔案使用 `file://`，已搬移 skill 使用 `skill://`。前者啟動時載入，後者按需載入。Kiro 可用自然語言指定「Use the reviewer agent ...」；CLI 不盲改含糊的 `/name`。
 
-差異包含 stdin/stdout 決策協議、exit-code、fail-open/fail-closed、以及 context injection。CLI 會解析並回報每個 Hook，但不會產生 Kiro Hook 檔。
+## Hooks
+
+目前會為有對應事件的 command hook 產生：
+
+- `.kiro/hooks/cursor-<event>-<index>.json`：standalone `version: "v1"`。
+- `.kiro/hooks/adapters/*.mjs`：自包含的 Node.js adapter。
+- `.agents/docs/migration-drafts/hooks/`：原始欄位備份。
+
+**所有 hook 產物預設 `enabled: false`，報告標為 DRAFT。** 任意 script 的 stdin／工具名稱與執行需求無法由 hooks.json 完整證明；應先以目標 Kiro 版本驗證再啟用。遷移期間不執行 hook。
+
+| Cursor | Kiro |
+| --- | --- |
+| `sessionStart` | `SessionStart` |
+| `preToolUse`／`postToolUse` | `PreToolUse`／`PostToolUse` |
+| `beforeSubmitPrompt` | `UserPromptSubmit` |
+| `stop` | `Stop` |
+| shell／MCP 執行前後 | 工具事件 + adapter 內的過濾與欄位轉換 |
+| `beforeReadFile` | `PreToolUse` + read 過濾 |
+| `afterFileEdit` | `PostFileSave`，需驗證觸發與 payload 差異 |
+
+Adapter 處理 permission allow/deny、prompt continue、additional_context、退出碼與內層 timeout；matcher 留在 adapter 依 Cursor 的比對對象判斷。原 shell command 與 project-root cwd 保留；腳本和其依賴不搬移，執行需 Node.js 與來源腳本。
+
+無對應的 `sessionEnd` 等事件逐項回報；Cursor prompt hook 不能直接等同 Kiro prompt injection。未知輸出、ask、修改 tool input/output、自動續跑等控制行為不會被靜默丟棄。

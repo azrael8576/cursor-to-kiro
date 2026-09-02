@@ -1,6 +1,7 @@
 import { constants } from "node:fs";
 import {
   copyFile,
+  chmod,
   lstat,
   mkdir,
   readFile,
@@ -70,6 +71,7 @@ export async function commitTransaction(
         hashBytes(Buffer.from(entry.absolutePath)),
       );
       await writeFile(stagePath, entry.bytes, { flag: "wx" });
+      if (entry.mode !== undefined) await chmod(stagePath, entry.mode);
       staged.set(entry.absolutePath, stagePath);
     }
     for (const entry of entries) {
@@ -83,7 +85,10 @@ export async function commitTransaction(
           throw new Error(
             `Destination is not a regular file: ${entry.displayPath}`,
           );
-        if (!bytesEqual(await readFile(entry.absolutePath), entry.bytes))
+        if (
+          !bytesEqual(await readFile(entry.absolutePath), entry.bytes) ||
+          (entry.mode !== undefined && (existing.mode & 0o777) !== entry.mode)
+        )
           throw new Error(
             `Destination changed before commit: ${entry.displayPath}`,
           );

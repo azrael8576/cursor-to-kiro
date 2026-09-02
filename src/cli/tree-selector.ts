@@ -17,7 +17,12 @@ export async function selectArtifacts(
     options: migratable.map(analysis => ({
       value: analysis.candidate.id,
       label: analysis.candidate.identity,
-      hint: analysis.status === "EXACT" ? "compatible" : "will be converted",
+      hint:
+        analysis.disposition === "draft"
+          ? "draft only; not activated"
+          : analysis.status === "EXACT"
+            ? "compatible"
+            : "will be converted",
     })),
     initialValues: migratable
       .filter(analysis => analysis.selected)

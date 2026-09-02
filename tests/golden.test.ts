@@ -32,12 +32,45 @@ describe("golden and idempotency migration", () => {
       snapshot,
       tempDirectory,
     );
-    expect(first.created).toHaveLength(4);
+    expect(first.created).toHaveLength(8);
     const actual = await treeSnapshot(path.join(root, ".kiro"));
     const expected = await treeSnapshot(
       path.join(FIXTURES, "golden", "expected", ".kiro"),
     );
-    expect(actual).toEqual(expected);
+    expect(
+      actual.filter(
+        file =>
+          !file.identity.startsWith("agents/") &&
+          !file.identity.startsWith("hooks/"),
+      ),
+    ).toEqual(expected);
+    const agent = actual.find(file => file.identity === "agents/reviewer.json");
+    expect(JSON.parse(agent?.content ?? "null")).toEqual({
+      name: "reviewer",
+      description: "Review changes.",
+      prompt: "\nReview the requested files.\n",
+      tools: ["read", "write", "shell"],
+      includeMcpJson: false,
+      resources: ["skill://.kiro/skills/*/SKILL.md"],
+    });
+    const hook = actual.find(
+      file => file.identity === "hooks/cursor-preToolUse-0.json",
+    );
+    expect(JSON.parse(hook?.content ?? "null")).toEqual({
+      version: "v1",
+      hooks: [
+        {
+          name: "cursor-preToolUse-0",
+          trigger: "PreToolUse",
+          enabled: false,
+          timeout: 62,
+          action: {
+            type: "command",
+            command: "node '.kiro/hooks/adapters/cursor-preToolUse-0.mjs'",
+          },
+        },
+      ],
+    });
 
     const secondPlan = await createMigrationPlan(
       (
@@ -52,12 +85,13 @@ describe("golden and idempotency migration", () => {
       tempDirectory,
     );
     expect(second.created).toHaveLength(0);
-    expect(second.alreadyPresent).toHaveLength(4);
+    expect(second.alreadyPresent).toHaveLength(8);
 
     const afterSources = (await treeSnapshot(root)).filter(
       file =>
         !file.identity.startsWith(".kiro/") &&
-        !file.identity.startsWith(".agents/docs/rules/"),
+        !file.identity.startsWith(".agents/docs/rules/") &&
+        !file.identity.startsWith(".agents/docs/migration-drafts/"),
     );
     expect(afterSources).toEqual(beforeSources);
   });
